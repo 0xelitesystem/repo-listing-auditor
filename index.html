@@ -1,0 +1,2013 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Repo Listing Auditor</title>
+<meta name="description" content="Paste a list of repository names and see how the collection reads at listing depth: concentrated first hyphen tokens, sorted neighbours that share leading characters, and a mock listing. Runs entirely in your browser.">
+<link rel="canonical" href="https://0xelitesystem.github.io/repo-listing-auditor/">
+<meta property="og:title" content="Repo Listing Auditor">
+<meta property="og:description" content="Paste a list of repository names and see which first hyphen tokens are concentrated and which sorted neighbours render as one unreadable block.">
+<meta property="og:url" content="https://0xelitesystem.github.io/repo-listing-auditor/">
+<meta property="og:type" content="website">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Repo Listing Auditor",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any (browser)",
+  "description": "Audits a list of repository or package names at listing depth: first hyphen token concentration, adjacent longest common prefix collisions, a mock listing, and secondary description checks.",
+  "url": "https://0xelitesystem.github.io/repo-listing-auditor/",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "0xelitesystem", "url": "https://elitesystem.ai" }
+}
+</script>
+<style>
+:root{
+  --bg:#e8ebef; --surface:#f7f9fb; --surface-2:#dde3ea;
+  --ink:#14171a; --ink-soft:#41474e;
+  --accent:#2d6b00; --ok:#1c6b3a; --warn:#8a4d00; --err:#a82d14;
+  --border:#c3cad2; --control:#6f7883;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0a0a0a; --surface:#16181a; --surface-2:#202426;
+    --ink:#f2f4f6; --ink-soft:#b7bec6;
+    --accent:#d4ff3a; --ok:#7fe3a4; --warn:#ffc266; --err:#ff9d87;
+    --border:#2c3134; --control:#7d858c;
+  }
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  margin:0; padding:1.25rem;
+  background:var(--bg); color:var(--ink);
+  font:16px/1.55 ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+main{max-width:60rem; margin:0 auto}
+h1{font-size:1.6rem; line-height:1.25; margin:0 0 .4rem}
+h2{font-size:1.15rem; margin:0 0 .35rem}
+h3{font-size:1rem; margin:1rem 0 .35rem}
+p{margin:.45rem 0}
+.lead{color:var(--ink-soft); max-width:52rem}
+.soft{color:var(--ink-soft)}
+section.panel, section.block{
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; padding:.85rem 1rem; margin:1rem 0;
+}
+label{display:block; font-weight:600; margin:.5rem 0 .25rem}
+textarea, input[type=number]{
+  font:14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color:var(--ink); background:var(--surface-2);
+  border:1px solid var(--control); border-radius:6px; padding:.5rem; width:100%;
+}
+textarea{min-height:11rem; resize:vertical}
+input[type=number]{width:7rem}
+fieldset{border:1px solid var(--control); border-radius:6px; margin:.75rem 0; padding:.5rem .75rem}
+legend{font-weight:600; padding:0 .3rem}
+fieldset p{margin:.25rem 0}
+fieldset label{display:inline; font-weight:400}
+button{
+  font:inherit; font-weight:600; cursor:pointer;
+  background:var(--accent); color:var(--bg);
+  border:1px solid var(--accent); border-radius:6px;
+  padding:.45rem .9rem; margin:.35rem .35rem .35rem 0;
+}
+button.secondary{background:var(--surface-2); color:var(--ink); border-color:var(--control)}
+:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+table{border-collapse:collapse; width:100%; margin:.5rem 0; font-size:.94rem}
+caption{text-align:left; font-weight:600; padding:.25rem 0; color:var(--ink)}
+th, td{border:1px solid var(--border); padding:.3rem .5rem; text-align:left; vertical-align:top}
+th{background:var(--surface-2)}
+td.num, th.num{text-align:right; font-variant-numeric:tabular-nums}
+.wrap{overflow-x:auto}
+code, .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.92em}
+.tag{
+  display:inline-block; font-size:.78rem; font-weight:700; letter-spacing:.02em;
+  border:1px solid var(--border); border-radius:4px; padding:0 .35rem; margin-right:.35rem;
+  background:var(--surface-2);
+}
+.tag.ok{color:var(--ok)} .tag.warn{color:var(--warn)} .tag.err{color:var(--err)} .tag.note{color:var(--ink-soft)}
+.listing{margin:.5rem 0; padding-left:3rem}
+.listing li{padding:.2rem 0; border-bottom:1px solid var(--border)}
+.listing li.hit{background:var(--surface-2)}
+.listing .nm{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+.listing mark{background:transparent; color:var(--accent); font-weight:700; text-decoration:underline}
+.listing .why{display:block; font-size:.82rem; color:var(--ink-soft)}
+.refusal{border-left:4px solid var(--err); background:var(--surface-2); padding:.55rem .75rem; margin:.6rem 0}
+.refusal strong{color:var(--err)}
+.notice{border-left:4px solid var(--warn); background:var(--surface-2); padding:.55rem .75rem; margin:.6rem 0}
+.notice strong{color:var(--warn)}
+.result-line{font-weight:600; min-height:1.55em}
+pre.selftest{
+  background:var(--surface-2); border:1px solid var(--border); border-radius:6px;
+  padding:.6rem .75rem; overflow-x:auto; font-size:.88rem; white-space:pre-wrap;
+}
+details{margin:.5rem 0} summary{cursor:pointer; font-weight:600}
+footer{color:var(--ink-soft); font-size:.9rem; margin:2rem 0 1rem}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+
+<h1>Repo Listing Auditor</h1>
+<p class="lead">Paste a list of repository names and see how the collection reads at listing depth: which first hyphen tokens are concentrated, and which sorted neighbours share so many leading characters that they render as one unreadable block. A slug echo check runs alongside and currently finds nothing on the author's own 373 repos.</p>
+<p class="soft">Everything runs in this page. Nothing is uploaded, stored or transmitted. This is a collection level verdict, not a per repo linter, and it never fetches a repository.</p>
+
+<section class="block" aria-labelledby="input-h">
+  <h2 id="input-h">Input</h2>
+  <label for="src">Repository or package names, one per line</label>
+  <p class="soft" id="src-help">Four accepted shapes: a JSON array of objects, tab separated name and description, comma separated name and description with double quoted fields, or a bare newline separated list of names. A bare list of names with no descriptions at all is enough.</p>
+  <textarea id="src" spellcheck="false" autocomplete="off" aria-describedby="src-help"></textarea>
+
+  <fieldset>
+    <legend>Collation for the sorted copy</legend>
+    <p>
+      <input type="radio" id="col-cp" name="collation" value="codepoint" checked>
+      <label for="col-cp">Codepoint order (ASCII). Plain string comparison. Default.</label>
+    </p>
+    <p>
+      <input type="radio" id="col-pi" name="collation" value="punct">
+      <label for="col-pi">Punctuation insensitive collation. Alternative order, built with the browser's own collator.</label>
+    </p>
+    <p class="soft">These two orders disagree about where a name like <span class="mono">agentic-workflow-patterns</span> lands relative to an <span class="mono">agent-</span> block, so they disagree about run lengths. Codepoint order on non ASCII text is codepoint order, not linguistic order.</p>
+  </fieldset>
+
+  <label for="thr">Adjacent collision threshold, shared leading characters</label>
+  <input type="number" id="thr" min="1" max="200" step="1" value="8">
+
+  <p>
+    <button type="button" id="btn-reference">Load the 373 row example</button>
+    <button type="button" id="btn-example" class="secondary">Load the 40 row detector sample</button>
+    <button type="button" id="btn-clear" class="secondary">Clear</button>
+    <button type="button" id="btn-selftest" class="secondary">Run self test</button>
+  </p>
+  <p class="soft">The 373 row example is the real reference corpus: the author's own public repository list, name, tab, description, as it stood in the snapshot of 2026-09-02, shipped in full and never trimmed, so every figure in this page's README is reproducible here in one click. It is a snapshot, not a feed, so a list pulled today is a different set of rows. The corpus is stored in this file as literal text with no substitution of any kind, and the self test checks it row by row. The 40 row detector sample is neutral placeholder data that exercises every panel, which the reference corpus does not.</p>
+
+  <div id="messages"></div>
+  <p id="live" class="result-line" role="status" aria-live="polite"></p>
+</section>
+
+<section class="panel" aria-labelledby="pa-h">
+  <h2 id="pa-h">Panel A. Prefix concentration</h2>
+  <div id="panel-a"><p class="soft">Will count the first hyphen token of every name and list every token appearing 3 or more times, most frequent first.</p></div>
+</section>
+
+<section class="panel" aria-labelledby="pb-h">
+  <h2 id="pb-h">Panel B. Adjacent collisions</h2>
+  <div id="panel-b"><p class="soft">Will sort a copy of the list, find every maximal contiguous run of 3 or more entries sharing a first hyphen token, and every adjacent pair sharing 8 or more leading characters.</p></div>
+</section>
+
+<section class="panel" aria-labelledby="pc-h">
+  <h2 id="pc-h">Panel C. Mock listing</h2>
+  <div id="panel-c"><p class="soft">Will render the sorted names as a plain listing so the collision blocks are visible rather than merely counted.</p></div>
+</section>
+
+<section class="panel" aria-labelledby="pd-h">
+  <h2 id="pd-h">Panel D. Description checks</h2>
+  <p class="soft">Secondary. Never the headline.</p>
+  <div id="panel-d"><p class="soft">Will check whether a description merely repeats its own name, and will report a separate WARN tier for one string match rule.</p></div>
+</section>
+
+<section class="block" aria-labelledby="st-h">
+  <h2 id="st-h">Self test</h2>
+  <p class="soft">Runs the shipped functions against known correct values, including two positive controls: a deliberately wrong assertion that must be reported as correctly rejected, and a malformed input that must raise a named refusal.</p>
+  <div id="selftest-out"></div>
+</section>
+
+<section class="block" aria-labelledby="m-h">
+  <h2 id="m-h">Method, and what each number means</h2>
+
+  <h3>Sorting</h3>
+  <p>The input is never reordered in place. A copy is sorted. Codepoint order is a plain <span class="mono">a &lt; b</span> comparison, not <span class="mono">localeCompare</span>, because the default locale comparison is punctuation insensitive on many engines and would silently change the default output. The alternative setting uses the browser's own collator with base sensitivity and punctuation ignored, plus a codepoint tiebreak so the sort stays total and stable.</p>
+  <p>Which order any given listing page uses is a property of that page, not of this tool. No document on hand states it, so the choice is exposed rather than assumed. The author's own catalog notes recorded their prefix runs under the punctuation insensitive order while calling that order lexicographic, which is where two conflicting sets of run lengths in that file came from.</p>
+
+  <h3>Prefix histogram</h3>
+  <p>Everything before the first hyphen, lowercased. No stemming, no lemmatising, no merging of singular and plural. <span class="mono">embedding</span> and <span class="mono">embeddings</span> are two different tokens, and merging them would destroy the finding this check exists to surface.</p>
+
+  <h3>Maximal contiguous runs</h3>
+  <p>A run is a block of consecutive entries in the sorted copy whose first hyphen token is identical. It is defined by adjacency, not by how many times the token appears anywhere in the list. That distinction is the point: a token can appear nine times and still not form a run of nine if another name sorts into the middle of the block. The sorted index of the entry immediately after each run is printed, so you can see for yourself what does or does not split a block.</p>
+
+  <h3>Longest common prefix</h3>
+  <p>Matching leading characters between two adjacent sorted names, counted until the first difference or the end of the shorter name. Computed for every adjacent pair, which is one comparison fewer than the number of names. The threshold is yours to change.</p>
+
+  <h3>Panel D, and the WARN tier</h3>
+  <p>Slug echo is exact equality of the sorted token multisets of name and description, plus a separate exact title cased slug string test. Token set Jaccard, intersection over union, is reported at 0.45 or above as a NEAR tier. An empty description is counted separately and is never an echo.</p>
+  <p><span class="tag warn">WARN</span> Copula opener rule. This is a <strong>string match, not a grammatical judgement</strong>. Clause parsing cannot ship in one self contained page with no network and no library, so it is not attempted. Measured on the author's 373 row reference corpus, this rule scores <strong>1 hit, 0 true positives, 1 false positive (conventional-commits-reference)</strong>. It is never counted in any headline total.</p>
+  <p class="soft">A broader variant was written and rejected. Looking for any form of "to be" anywhere before the first subordinating conjunction fires on 40 of the same 373 rows with visible false positives, including <span class="mono">eagles-eye</span> ("A spy satellite simulator in your browser, except the data is real.") and <span class="mono">text-encryptor</span> ("Encrypt and decrypt text in your browser with a passphrase using the Web Crypto API."), neither of which opens with a copula. The narrow rule ships, labelled WARN, with its own failure rate printed above.</p>
+
+  <h3>What is deliberately not here</h3>
+  <p>No near duplicate name detector by edit distance. It was implemented and measured: at distance 3 or less with a first token bucket prefilter it returns zero pairs on the 373 row corpus. It is dead weight, so it is not shipped in any form.</p>
+</section>
+
+<footer>
+  <p>Independent project. Not affiliated with, endorsed by, or connected to any repository host, package registry or vendor named anywhere on this page. Built by <a href="https://elitesystem.ai">0xelitesystem</a>. MIT licensed.</p>
+</footer>
+
+</main>
+<script>
+(function () {
+  'use strict';
+
+  /* CORE-START: pure functions, no DOM access below this line until CORE-END */
+
+  var MAX_INPUT_CHARS = 8000000;
+  var MAX_ROWS = 200000;
+  var SOFT_ROW_WARN = 20000;
+  var MAX_NAME_CHARS = 512;
+  var LISTING_RENDER_CAP = 500;
+  var TABLE_RENDER_CAP = 2000;
+  var NEAR_JACCARD = 0.45;
+  /* The two leading whitespace runs are made possessive with the (?=(\s*))\1 idiom, because a plain
+     \s* next to a character class that also accepts a space backtracks quadratically on a long run of
+     spaces. The idiom matches the same language: taking the maximum whitespace first is always optimal
+     here, since the bounded class never needs those spaces. Verified identical on every row of the
+     reference corpus, on the shipped example, and on 834587 generated strings. */
+  var COPULA_RE = /^(?=(\s*))\1(?:the|a|an|this)?(?=(\s*))\2[\w\- ]{0,40}?\b(is|are|was|were)\b/i;
+  function isBadKey(k) { return k === '__proto__' || k === 'constructor' || k === 'prototype'; }
+  var NAME_KEYS = ['name', 'slug', 'repo', 'id'];
+  var DESC_KEYS = ['description', 'desc', 'd'];
+
+  function Refusal(name, detail) {
+    var e = new Error(name + '. ' + detail);
+    e.refusalName = name;
+    e.refusalDetail = detail;
+    e.isRefusal = true;
+    return e;
+  }
+  function refuse(name, detail) { throw Refusal(name, detail); }
+
+  /* Number of matching leading UTF-16 code units, never stopping inside a surrogate pair, so the
+     returned length is always a safe slice boundary and no half character is ever rendered. */
+  function lcp(a, b) {
+    var n = 0;
+    var m = a.length < b.length ? a.length : b.length;
+    if (m > MAX_NAME_CHARS) { m = MAX_NAME_CHARS; }
+    while (n < m && a.charCodeAt(n) === b.charCodeAt(n)) { n++; }
+    if (n > 0) {
+      var last = a.charCodeAt(n - 1);
+      if (last >= 0xD800 && last <= 0xDBFF) { n--; }
+    }
+    return n;
+  }
+
+  /* Characters a reader actually sees: a surrogate pair counts once, not twice. */
+  function countCodePoints(s) {
+    var c = 0;
+    for (var i = 0; i < s.length; i++) {
+      var u = s.charCodeAt(i);
+      if (u >= 0xD800 && u <= 0xDBFF && i + 1 < s.length) {
+        var v = s.charCodeAt(i + 1);
+        if (v >= 0xDC00 && v <= 0xDFFF) { i++; }
+      }
+      c++;
+    }
+    return c;
+  }
+
+  function firstToken(name) {
+    var i = name.indexOf('-');
+    return (i === -1 ? name : name.slice(0, i)).toLowerCase();
+  }
+
+  function cmpCodepoint(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+
+  function makeComparator(mode) {
+    if (mode !== 'punct') { return cmpCodepoint; }
+    var coll = null;
+    try {
+      coll = new Intl.Collator(undefined, { sensitivity: 'base', ignorePunctuation: true });
+    } catch (err) { coll = null; }
+    if (!coll) { return cmpCodepoint; }
+    return function (a, b) {
+      var r = coll.compare(a, b);
+      return r !== 0 ? r : cmpCodepoint(a, b);
+    };
+  }
+
+  function collatorAvailable() {
+    try {
+      var c = new Intl.Collator(undefined, { sensitivity: 'base', ignorePunctuation: true });
+      return typeof c.compare === 'function';
+    } catch (err) { return false; }
+  }
+
+  /* Bounded scan rather than splitting the whole string first: a very long description must not
+     allocate an intermediate array many times its own size just to yield the first 4096 tokens. */
+  function tokens(s) {
+    var out = [];
+    var str = String(s).toLowerCase();
+    var re = /[a-z0-9]+/g;
+    var m;
+    while (out.length < 4096 && (m = re.exec(str)) !== null) { out.push(m[0]); }
+    return out;
+  }
+
+  function sameMultiset(a, b) {
+    if (a.length !== b.length) { return false; }
+    var x = a.slice().sort();
+    var y = b.slice().sort();
+    for (var i = 0; i < x.length; i++) { if (x[i] !== y[i]) { return false; } }
+    return true;
+  }
+
+  function titleCasedSlug(name) {
+    var parts = name.split('-');
+    var out = [];
+    for (var i = 0; i < parts.length && i < 256; i++) {
+      var w = parts[i];
+      out.push(w ? w.charAt(0).toUpperCase() + w.slice(1) : w);
+    }
+    return out.join(' ');
+  }
+
+  function jaccard(aTokens, bTokens) {
+    var A = {}, B = {}, i, k;
+    for (i = 0; i < aTokens.length; i++) { A['t.' + aTokens[i]] = true; }
+    for (i = 0; i < bTokens.length; i++) { B['t.' + bTokens[i]] = true; }
+    var inter = 0, uni = 0;
+    var seen = {};
+    for (k in A) {
+      if (Object.prototype.hasOwnProperty.call(A, k)) {
+        seen[k] = true; uni++;
+        if (Object.prototype.hasOwnProperty.call(B, k)) { inter++; }
+      }
+    }
+    for (k in B) {
+      if (Object.prototype.hasOwnProperty.call(B, k) && !Object.prototype.hasOwnProperty.call(seen, k)) { uni++; }
+    }
+    return uni === 0 ? 0 : inter / uni;
+  }
+
+  /* 1 based line number of a character offset. Only called on a refusal path, so the cost is paid once. */
+  function lineAt(text, i) {
+    var line = 1;
+    var stop = i < text.length ? i : text.length;
+    for (var k = 0; k < stop; k++) {
+      if (text.charCodeAt(k) === 10) { line++; }
+    }
+    return line;
+  }
+
+  function describeChar(c) {
+    if (c === '\t') { return 'a tab'; }
+    if (c === ' ') { return 'a space'; }
+    return 'the character ' + c;
+  }
+
+  /* Comma separated values, RFC 4180 shaped, quoted fields may contain commas and newlines.
+     Malformed input is refused by name. Nothing is guessed and no partial result is returned. */
+  function parseCsv(text) {
+    var rows = [];
+    var field = '';
+    var row = [];
+    var inQuotes = false;
+    var i = 0;
+    var n = text.length;
+    var guard = 0;
+    while (i < n) {
+      if (++guard > MAX_INPUT_CHARS + 16) { refuse('Refused, parser guard tripped', 'The comma separated scanner exceeded its own step budget. No result is reported.'); }
+      var c = text.charAt(i);
+      if (inQuotes) {
+        if (c === '"') {
+          if (text.charAt(i + 1) === '"') { field += '"'; i += 2; continue; }
+          var after = i + 1 < n ? text.charAt(i + 1) : '';
+          if (after !== '' && after !== ',' && after !== '\r' && after !== '\n') {
+            refuse('Refused, malformed quoted field',
+              'On line ' + lineAt(text, i) + ' a closing double quote is followed by ' + describeChar(after) +
+              ' instead of a comma, a line break or the end of the input. Under the comma separated rules a quote inside a quoted field must be written twice.');
+          }
+          inQuotes = false; i++; continue;
+        }
+        field += c; i++; continue;
+      }
+      if (c === '"') {
+        if (field === '') { inQuotes = true; i++; continue; }
+        refuse('Refused, unescaped double quote',
+          'On line ' + lineAt(text, i) + ' a double quote appears part way through an unquoted field. A quote may only open a field or be written twice inside a quoted one.');
+      }
+      if (c === ',') { row.push(field); field = ''; i++; continue; }
+      if (c === '\n' || c === '\r') {
+        if (c === '\r' && text.charAt(i + 1) === '\n') { i++; }
+        row.push(field); field = '';
+        rows.push(row); row = [];
+        i++;
+        if (rows.length > MAX_ROWS) { refuse('Refused, too many rows', 'Over ' + MAX_ROWS + ' rows. Split the file and audit it in parts.'); }
+        continue;
+      }
+      field += c; i++;
+    }
+    if (inQuotes) {
+      refuse('Refused, unterminated quoted field', 'A double quote opened and was never closed. Nothing is guessed and no partial result is reported.');
+    }
+    row.push(field);
+    rows.push(row);
+    return rows;
+  }
+
+  function jsonErrorDetail(raw, err) {
+    var msg = err && err.message ? String(err.message) : 'unknown parse error';
+    var m = /position\s+(\d+)/i.exec(msg);
+    var detail = 'The parser said: ' + msg;
+    if (m) {
+      var pos = parseInt(m[1], 10);
+      if (pos >= 0 && pos <= raw.length) {
+        var before = raw.slice(0, pos);
+        var lineNo = before.split('\n').length;
+        var lineStart = before.lastIndexOf('\n') + 1;
+        var lineEnd = raw.indexOf('\n', pos);
+        if (lineEnd === -1) { lineEnd = raw.length; }
+        var line = raw.slice(lineStart, lineEnd);
+        if (line.length > 200) { line = line.slice(0, 200) + ' ...'; }
+        detail += ' Character offset ' + pos + ', line ' + lineNo + ': ' + line;
+      }
+    }
+    return detail;
+  }
+
+  function pickKey(obj, wanted) {
+    var keys = Object.keys(obj);
+    for (var w = 0; w < wanted.length; w++) {
+      for (var i = 0; i < keys.length && i < 512; i++) {
+        var k = keys[i];
+        if (isBadKey(k)) { continue; }
+        if (k.trim().toLowerCase() === wanted[w]) { return k; }
+      }
+    }
+    return null;
+  }
+
+  function safeGet(obj, key) {
+    if (key === null) { return ''; }
+    if (isBadKey(key)) { return ''; }
+    if (!Object.prototype.hasOwnProperty.call(obj, key)) { return ''; }
+    var v = obj[key];
+    if (v === null || v === undefined) { return ''; }
+    if (typeof v === 'string') { return v; }
+    if (typeof v === 'number' || typeof v === 'boolean') { return String(v); }
+    return '';
+  }
+
+  /* Returns { rows, shape, dupes, skippedNoName, badKeyRows, notes }. Throws a named Refusal on malformed input. */
+  function parseInput(raw) {
+    if (typeof raw !== 'string') { refuse('Refused, input is not text', 'Only text can be audited.'); }
+    if (raw.length > MAX_INPUT_CHARS) {
+      refuse('Refused, input too large', 'Over ' + MAX_INPUT_CHARS + ' characters. Split the file and audit it in parts.');
+    }
+    var trimmed = raw.trim();
+    if (!trimmed) { return { rows: [], shape: 'empty', dupes: 0, skippedNoName: 0, truncated: 0, badKeyRows: 0, notes: [] }; }
+
+    var notes = [];
+    var records = [];
+    var shape = 'lines';
+    var badKeyRows = 0;
+
+    var first = trimmed.charAt(0);
+    if (first === '[' || first === '{') {
+      var data;
+      try { data = JSON.parse(trimmed); }
+      catch (err) { refuse('Refused, JSON did not parse', jsonErrorDetail(trimmed, err)); }
+      if (!Array.isArray(data)) {
+        refuse('Refused, JSON is not an array', 'The top level value is a ' + (data === null ? 'null' : typeof data) + '. Paste a JSON array of objects, or a plain list of names.');
+      }
+      if (data.length > MAX_ROWS) { refuse('Refused, too many rows', 'Over ' + MAX_ROWS + ' rows. Split the file and audit it in parts.'); }
+      shape = 'json';
+      var foundKeys = Object.create(null);
+      var anyNameKey = false;
+      for (var j = 0; j < data.length; j++) {
+        var item = data[j];
+        if (typeof item === 'string') { records.push([item, '']); anyNameKey = true; continue; }
+        if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+          refuse('Refused, unexpected JSON element', 'Element ' + j + ' is a ' + (item === null ? 'null' : Array.isArray(item) ? 'array' : typeof item) + '. Every element must be an object or a string.');
+        }
+        var ks = Object.keys(item);
+        for (var y = 0; y < ks.length && y < 512; y++) {
+          if (isBadKey(ks[y])) { badKeyRows++; continue; }
+          foundKeys['k.' + ks[y]] = true;
+        }
+        var nk = pickKey(item, NAME_KEYS);
+        var dk = pickKey(item, DESC_KEYS);
+        if (nk !== null) { anyNameKey = true; }
+        records.push([safeGet(item, nk), safeGet(item, dk)]);
+      }
+      if (!anyNameKey) {
+        var seen = Object.keys(foundKeys).slice(0, 25).map(function (x) { return x.slice(2); }).join(', ');
+        refuse('Refused, no name key in the JSON objects',
+          'Looked for name, slug, repo or id. Found these keys instead: ' + (seen || 'none') + '.');
+      }
+      if (badKeyRows > 0) {
+        notes.push(badKeyRows + ' reserved key' + (badKeyRows === 1 ? '' : 's') + ' named __proto__, constructor or prototype were ignored rather than assigned.');
+      }
+    } else {
+      var body = raw;
+      var lines = body.split(/\r?\n/);
+      if (lines.length > MAX_ROWS) { refuse('Refused, too many rows', 'Over ' + MAX_ROWS + ' rows. Split the file and audit it in parts.'); }
+      /* Decide the delimiter on per line evidence, never on one indexOf over the whole document.
+         A line votes tab if its first tab precedes its first comma, comma if it holds a comma and no
+         earlier tab, and abstains if it holds neither. Both shapes present at once is not guessed at. */
+      var tabLines = 0, commaLines = 0;
+      var firstTabLine = 0, firstCommaLine = 0;
+      var vote;
+      for (vote = 0; vote < lines.length; vote++) {
+        if (!lines[vote].trim()) { continue; }
+        var ti = lines[vote].indexOf('\t');
+        var ci = lines[vote].indexOf(',');
+        if (ti !== -1 && (ci === -1 || ti < ci)) {
+          tabLines++;
+          if (firstTabLine === 0) { firstTabLine = vote + 1; }
+        } else if (ci !== -1) {
+          commaLines++;
+          if (firstCommaLine === 0) { firstCommaLine = vote + 1; }
+        }
+      }
+      if (tabLines > 0 && commaLines > 0) {
+        refuse('Refused, the delimiter is ambiguous',
+          tabLines + ' line' + (tabLines === 1 ? '' : 's') + ' read as tab separated (first at line ' + firstTabLine + ') and ' +
+          commaLines + ' line' + (commaLines === 1 ? '' : 's') + ' read as comma separated (first at line ' + firstCommaLine +
+          '). Splitting on either delimiter would mangle the other set, so nothing is split. Use one delimiter, or quote the fields that contain the other.');
+      }
+      var hasTab = tabLines > 0;
+      var hasComma = commaLines > 0;
+      var k2;
+      if (hasTab) {
+        shape = 'tsv';
+        for (k2 = 0; k2 < lines.length; k2++) {
+          if (!lines[k2].trim()) { continue; }
+          var tf = lines[k2].split('\t');
+          records.push([tf[0], tf.length > 1 ? tf[1] : '']);
+        }
+      } else if (hasComma) {
+        shape = 'csv';
+        var crows = parseCsv(body);
+        for (k2 = 0; k2 < crows.length; k2++) {
+          var cr = crows[k2];
+          if (cr.length === 1 && !cr[0].trim()) { continue; }
+          records.push([cr[0], cr.length > 1 ? cr[1] : '']);
+        }
+      } else {
+        shape = 'lines';
+        for (k2 = 0; k2 < lines.length; k2++) {
+          if (!lines[k2].trim()) { continue; }
+          records.push([lines[k2], '']);
+        }
+      }
+    }
+
+    var rows = [];
+    var seenNames = Object.create(null);
+    var dupes = 0;
+    var skippedNoName = 0;
+    var truncated = 0;
+    for (var r = 0; r < records.length; r++) {
+      var rawName = String(records[r][0] === undefined ? '' : records[r][0]).trim();
+      var desc = String(records[r][1] === undefined ? '' : records[r][1]).trim();
+      if (!rawName) { skippedNoName++; continue; }
+      /* Duplicates are decided on the full name. Two different names that happen to share a 512
+         character prefix are two names, and reporting them as a duplicate would be a false statement
+         about the user's own data. The shortening below is a display and cost bound only. */
+      var key = 'n.' + rawName;
+      if (seenNames[key]) { dupes++; continue; }
+      seenNames[key] = true;
+      var name = rawName;
+      if (name.length > MAX_NAME_CHARS) {
+        var cut = MAX_NAME_CHARS;
+        var edge = name.charCodeAt(cut - 1);
+        if (edge >= 0xD800 && edge <= 0xDBFF) { cut--; }
+        name = name.slice(0, cut);
+        truncated++;
+      }
+      rows.push({ name: name, desc: desc });
+    }
+    return { rows: rows, shape: shape, dupes: dupes, skippedNoName: skippedNoName, truncated: truncated, badKeyRows: badKeyRows, notes: notes };
+  }
+
+  function histogram(rows) {
+    var counts = Object.create(null);
+    for (var i = 0; i < rows.length; i++) {
+      var t = firstToken(rows[i].name);
+      var key = 't.' + t;
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    var out = [];
+    for (var k in counts) {
+      if (Object.prototype.hasOwnProperty.call(counts, k)) { out.push({ token: k.slice(2), count: counts[k] }); }
+    }
+    out.sort(function (a, b) {
+      if (b.count !== a.count) { return b.count - a.count; }
+      return cmpCodepoint(a.token, b.token);
+    });
+    return out;
+  }
+
+  function findRuns(sortedNames) {
+    var runs = [];
+    var i = 0;
+    var guard = 0;
+    while (i < sortedNames.length) {
+      if (++guard > sortedNames.length + 8) { break; }
+      var t = firstToken(sortedNames[i]);
+      var j = i;
+      while (j + 1 < sortedNames.length && firstToken(sortedNames[j + 1]) === t) { j++; }
+      var len = j - i + 1;
+      if (len >= 3) {
+        runs.push({
+          token: t, length: len, startIndex: i, endIndex: j,
+          first: sortedNames[i], last: sortedNames[j],
+          nextIndex: j + 1,
+          next: j + 1 < sortedNames.length ? sortedNames[j + 1] : null
+        });
+      }
+      i = j + 1;
+    }
+    return runs;
+  }
+
+  function adjacentPairs(sortedNames, threshold) {
+    var pairs = [];
+    for (var i = 0; i + 1 < sortedNames.length; i++) {
+      var n = lcp(sortedNames[i], sortedNames[i + 1]);
+      /* shared is a code unit length, safe to slice with. chars is what a reader counts on screen,
+         and it is what the threshold is measured against, so an astral character counts once. */
+      var chars = countCodePoints(sortedNames[i].slice(0, n));
+      if (chars >= threshold) {
+        pairs.push({ shared: n, chars: chars, a: sortedNames[i], b: sortedNames[i + 1], indexA: i, indexB: i + 1 });
+      }
+    }
+    pairs.sort(function (x, y) {
+      if (y.chars !== x.chars) { return y.chars - x.chars; }
+      return x.indexA - y.indexA;
+    });
+    return pairs;
+  }
+
+  function analyse(rows, mode, threshold) {
+    var cmp = makeComparator(mode);
+    var sortedNames = [];
+    for (var i = 0; i < rows.length; i++) { sortedNames.push(rows[i].name); }
+    sortedNames.sort(cmp);
+    var runs = findRuns(sortedNames);
+    var pairs = adjacentPairs(sortedNames, threshold);
+    var inRun = Object.create(null);
+    for (var r = 0; r < runs.length; r++) {
+      for (var k = runs[r].startIndex; k <= runs[r].endIndex; k++) {
+        inRun['i.' + k] = { run: runs[r], member: k - runs[r].startIndex + 1 };
+      }
+    }
+    /* Both endpoints of every pair are indexed. Keying only the later member would leave the earlier
+       one with no marker, and Panel C would print it as having no adjacent collision, which is false. */
+    var pairAt = Object.create(null);
+    var pairBelowAt = Object.create(null);
+    for (var p = 0; p < pairs.length; p++) {
+      pairAt['i.' + pairs[p].indexB] = pairs[p];
+      pairBelowAt['i.' + pairs[p].indexA] = pairs[p];
+    }
+    return {
+      mode: mode,
+      threshold: threshold,
+      count: rows.length,
+      sortedNames: sortedNames,
+      hist: histogram(rows),
+      runs: runs,
+      pairs: pairs,
+      inRun: inRun,
+      pairAt: pairAt,
+      pairBelowAt: pairBelowAt
+    };
+  }
+
+  function descriptionChecks(rows) {
+    var withDesc = 0, empty = 0;
+    var exactEcho = [], titleEcho = [], near = [], warn = [];
+    for (var i = 0; i < rows.length; i++) {
+      var name = rows[i].name;
+      var desc = rows[i].desc;
+      if (!desc) { empty++; continue; }
+      withDesc++;
+      var nt = tokens(name), dt = tokens(desc);
+      var isExact = sameMultiset(nt, dt);
+      var isTitle = (titleCasedSlug(name) === desc);
+      if (isExact) { exactEcho.push({ name: name, desc: desc }); }
+      if (isTitle) { titleEcho.push({ name: name, desc: desc }); }
+      var jac = jaccard(nt, dt);
+      if (!isExact && jac >= NEAR_JACCARD) { near.push({ name: name, desc: desc, jaccard: jac }); }
+      if (COPULA_RE.test(desc)) { warn.push({ name: name, desc: desc }); }
+    }
+    near.sort(function (a, b) { return b.jaccard - a.jaccard; });
+    return {
+      total: rows.length, withDesc: withDesc, empty: empty,
+      exactEcho: exactEcho, titleEcho: titleEcho, near: near, warn: warn
+    };
+  }
+
+  /* THE 40 ROW DETECTOR SAMPLE. Neutral placeholder data on reserved example domains and
+     generic names. It exists because the 373 row reference corpus below trips almost nothing:
+     this sample deliberately trips every detector at least once, so each one has a positive
+     control a user can see fire. */
+  var EXAMPLE_TSV = [
+    'alpha-audit-log-viewer\tAudit log viewer for the sample stack.',
+    'alpha-bridge-config\tConfiguration bridge between two sample services.',
+    'alpha-cache-inspector\tInspect cache entries held by the sample stack.',
+    'alpha-report-builder\tBuild printable reports from sample data.',
+    'alpha-sync-daemon\tBackground sync worker for the sample stack.',
+    'alpha-verify-runner\tRun verification jobs against sample data.',
+    'alphanumeric-slug-guide\tNotes on which characters survive a slug.',
+    'beta-queue-monitor\tWatch queue depth and consumer lag.',
+    'beta-queue-replayer\tReplay messages from a dead letter queue.',
+    'beta-token-rotator\tRotate placeholder tokens on a schedule.',
+    'changelog-formatter\tTurn commit subjects into a readable changelog.',
+    'changelog-template-pack\tStarter templates for release notes.',
+    'delta-csv-cleaner\tStrip stray whitespace and blank rows from a table.',
+    'delta-csv-splitter\tSplit one large table into numbered parts.',
+    'delta-json-linter\tCheck a document for trailing commas and duplicate keys.',
+    'example-domain-reference\tReference notes on the reserved example domains.',
+    'example-domain-templates\tCopy and paste templates using example.com addresses.',
+    'example-mail-forwarder\tForward mail sent to an example.org alias.',
+    'gamma-log-parser\tParse structured logs into rows.',
+    'gamma-log-tailer\tFollow a growing log file.',
+    'gamma-metrics-view\tSmall dashboard for counters and timers.',
+    'invoice-line-checker\tCheck line totals against quantity and unit price.',
+    'invoice-total-verifier\tRecompute an invoice total and compare it.',
+    'placeholder-page\t',
+    'config-loader-reference\tConfig Loader is a small utility for reading settings files.',
+    'report-service\tAlpha Report Service',
+    'sample-data-loader\tSample Data Loader',
+    'sample-data-writer\tWrite generated rows back to a local file.',
+    'sample-schema-diff\tCompare two schema files field by field.',
+    'static-site-checklist\tPre publish checklist for a static site.',
+    'static-site-deployer\tCopy a built site to a target directory.',
+    'timezone-offset-table\tOffsets for a handful of common zones.',
+    'uptime-badge-maker\tRender a status badge from a local file.',
+    'vendor-neutral-notes\tNotes written without naming a vendor.',
+    'widget-inventory-audit\tCount widgets on hand against the ledger.',
+    'widget-inventory-report\tMonthly widget inventory summary.',
+    'widget-price-table\tPrice table for the sample widget catalogue.',
+    'yaml-anchor-explainer\tWhat anchors and aliases do, with examples.',
+    'yaml-to-json-converter\tConvert a document between two formats.',
+    'zzz-ünicode-sample\tA row whose name carries a non ASCII character.'
+  ].join('\n');
+
+  /* THE 373 ROW REFERENCE CORPUS.
+
+     This is the author's own public repository list, one repository name, a tab, then that
+     repository's own description, exactly as the snapshot on disk carries it. Every figure
+     in the README was computed by running the functions above over this text, so it ships
+     here in full and untrimmed and a stranger can reproduce those figures in one click.
+     Snapshot taken 2026-09-02. It is a snapshot and not a feed: the live list has moved
+     since, so a list pulled today is a different set of rows and will not total the same.
+
+     NO substitution is applied to the stored text. Every name and description below is the
+     literal snapshot text: no row is dropped, reordered, shortened, reworded or encoded.
+     Seven of these repositories carry a third party product name inside their own name and
+     twenty four descriptions mention one of two such names, 34 occurrences in all. They are
+     the author's own repository names and they are stored literally, the same way every
+     other vendor name in this corpus is. The self test asserts the text is 73559 characters
+     over 373 rows and checks its first and last rows against the snapshot. */
+  var REFERENCE_ROWS = [
+    "0xelitesystem.github.io\tSearchable index of all 225 repos: 102 browser tools with live demos, 123 references. One page.",
+    "signing-cert-expiry-planner\tA single-file browser tool that turns a Windows code signing certificate's validity dates into the dates you actually have to act on: when each untimestamped artifact goes dark, when every future renewal falls, and the last safe day to ship a brid...",
+    "claude-shipping-plugins\tA Claude Code plugin marketplace for the parts of shipping software that fail",
+    "mcp-state-token-designer\tDesign the binding set that goes inside an MCP `requestState` token, mint one with real WebCrypto HMAC-SHA-256 in the browser, then read the residual table: which attack each binding stops, and the one attack that none of them stop.",
+    "windows-code-signing-and-smartscreen-reference\tA plain-language reference for shipping signed Windows software after the",
+    "silent-breaking-changes-reference\tA catalogue of five 2026 platform changes that reached working code without ever",
+    "eval-peeking-planner\tMeasure what checking an eval mid-run does to your false-positive rate, then compute the paired sample size and the group-sequential boundaries that fix it. Monte Carlo plus recursive numerical integration, in one HTML file, with no libraries and ...",
+    "mojibake-inverter\tPaste text that an encoding mistake mangled, recover the original exactly, see the full set of codecs that could have caused the damage, and get the positions that cannot be recovered at all.",
+    "mcp-header-annotation-validator\tPaste an MCP tool definition and find out, clause by clause, whether a conforming Streamable HTTP client will silently delete it from `tools/list` because of an `x-mcp-header` annotation.",
+    "eagles-eye\tA spy satellite simulator in your browser, except the data is real. Live open source spatial intelligence on a photorealistic 3D globe.",
+    "youtube-title-ab-tester\tCompare 2 to 5 candidate video titles side by side. Length, word overlap, signal patterns, search-result preview.",
+    "youtube-chapter-marker-builder\tValidate and format YouTube chapter timestamps. Two input modes (row-by-row or paste-block).",
+    "xml-formatter\tFormat, minify, and validate XML in your browser. One HTML file, no network, nothing leaves your machine.",
+    "word-and-character-counter\tPaste text and get a live count of words, characters, sentences, paragraphs, and reading time. No server, no tracking, no third-party scripts.",
+    "webhook-signature-verifier\tVerify webhook signatures from Stripe, GitHub, Slack, Twilio, and any HMAC-based service. Runs entirely in your browser.",
+    "webhook-inspector\tLocal webhook inspector. Registers a Service Worker that intercepts requests to a configured path on the same origin and displays them in real time.",
+    "wcag-audit-snippet\tQuick heuristic WCAG checks for any web page. Single HTML file plus a bookmarklet you can drag to your bookmarks bar to audit any site you visit.",
+    "video-srt-cleaner\tClean auto-generated SRT subtitle files: fix capitalization, remove filler words, merge short segments, renumber.",
+    "user-agent-parser\tBreak a User-Agent string into browser, engine, operating system, and device type. No server, no tracking, no third-party scripts.",
+    "url-parser-and-query-editor\tBreak a URL into its parts, edit the query parameters in a table, and rebuild it live. No server, no tracking, no third-party scripts.",
+    "tokenizer-visualizer\tSee approximate token boundaries in any text, color-coded, with a live token and character count. No server, no tracking, no third-party scripts.",
+    "timezone-converter\tA single-file world clock and meeting planner. Track the current time across any set of zones, then pick a moment to see it everywhere at once and find the working-hours overlap for a call.",
+    "text-encryptor\tEncrypt and decrypt text in your browser with a passphrase using the Web Crypto API. The output is a portable base64 blob. Nothing leaves your browser.",
+    "text-diff-viewer\tCompare two blocks of text and see a line-level diff in your browser. No server, no tracking, no third-party scripts.",
+    "terraform-security-linter\tBrowser-based Terraform/HCL security linter. Flags AWS misconfigurations across S3, IAM, RDS, security groups, and more, plus embedded secrets.",
+    "terminal-portfolio\tA single-file personal portfolio styled as an interactive terminal. Visitors type commands (help, about, projects, contact) and get formatted output.",
+    "temperature-top-p-playground\tDrag temperature, top_k and top_p and watch a real softmax distribution reshape live, with every stage of the truncation pipeline shown and the edge cases explained.",
+    "tailwind-to-css\tPaste a string of Tailwind utility classes and get the equivalent plain CSS, grouped into a single rule. It covers a solid set of common utilities using the default theme values. It is honest about scope: this maps common utilities with the defaul...",
+    "system-prompt-leak-tester\tA BYOK browser tool that runs 24 extraction attacks against your system prompt and reports what leaked.",
+    "svg-optimizer\tStrip and minify SVG markup in your browser: no upload, no network, nothing leaves your machine.",
+    "subscription-cost-auditor\tTotals your recurring subscriptions into a yearly figure, a monthly figure, and the annual cost of the ones you marked idle.",
+    "star-method-builder\tGuided builder for STAR interview answers (Situation, Task, Action, Result). Four guided sections with prompts and word targets, a live assembled preview, a bank of common behavioral questions, and locally saved answers. No external services, a st...",
+    "stack-trace-cleaner\tStrip framework noise from stack traces. Paste a trace from Node, Python, Rust, Java, Ruby, or Go, get only the frames in your code, with the option to expand framework frames if you need them.",
+    "srt-to-vtt-converter\tConvert subtitle files between SubRip (.srt) and WebVTT (.vtt) in both directions. The input format is auto-detected, multi-line cues and blank lines are handled, and everything runs in your browser with no external dependencies. Works offline.",
+    "sql-join-visualizer\tAn interactive teaching tool for SQL joins. Pick INNER, LEFT, RIGHT, FULL OUTER, or CROSS JOIN and see three things update together: a Venn diagram of what the join keeps, the generated SQL statement, and the actual result table computed live from...",
+    "sql-formatter\tPretty-print and minify SQL in your browser. No server, no tracking, no third-party scripts.",
+    "single-file-saas-template\tA complete BYOK SaaS scaffolded into one HTML file. Free tier with daily limit, Pro tier unlocked by license code, key never leaves the user's browser.",
+    "session-cookie-auditor\tBrowser-based Set-Cookie header auditor. Grades cookies A to F on hardening attributes (Secure, HttpOnly, SameSite, scoping, prefixes)",
+    "serp-snippet-preview\tSee how your page looks in search before it ships, with truncation estimates.",
+    "secrets-scanner-bookmarklet\tA bookmarklet that scans the current web page for exposed API keys, tokens, and credentials. Drag to your bookmarks bar, click on any page, see findings.",
+    "schema-markup-generator\tGenerate JSON-LD schema markup for 12 schema types. Browser-only, no signup, no API calls.",
+    "resume-keyword-matcher\tPaste your resume and a job description, get an honest keyword-overlap analysis. One HTML file, no server, no tracking, no external dependencies. Works offline.",
+    "regex-tester-with-explainer\tTest a regular expression against sample text AND get a plain-English breakdown of what each token does.",
+    "regex-tester\tA single-file browser tool that tests a JavaScript regular expression against sample text with live match highlighting, capture groups, match positions, and a common-pattern reference.",
+    "regex-studio\tAn open-source regex playground: live match highlighting, plain-English explanation, structure diagram, and ReDoS warnings. All client-side.",
+    "regex-redos-checker\tBrowser-based ReDoS checker. Detects catastrophic-backtracking patterns and synthesizes evil inputs to demonstrate the worst case.",
+    "regex-cheatsheet-playground\tA regex cheatsheet, a live tester with match highlighting, and a library of common tested patterns, in one page. No server, no tracking, no third-party scripts.",
+    "readme-slop-checker\tAudit a GitHub README for AI-generated cliche patterns. Single HTML file, BYOK Claude API, MIT licensed. No build step, no backend. Deploy free via GitHub Pages.",
+    "rate-limit-tester\tProbe a URL with N requests per second from your browser. See when it 429s, what Retry-After it returns, and how rate-limit headers behave.",
+    "rag-ingest-injection-scanner\tDrop an HTML page or a .docx you are about to index and see every character a text extractor hands the model that a reader never sees: hidden runs, clipped text, off-canvas payloads.",
+    "prompt-token-meter\tVisual context-window meter. Paste a prompt, see estimated token usage as gauges across major LLMs (Claude, GPT, Gemini, Llama, DeepSeek, Mistral).",
+    "prompt-template-linter\tPaste a prompt template and get a local report: unfilled variables, an approximate token and length estimate, flagged prompt-injection patterns, and simple quality checks. No server, no tracking, no third-party scripts.",
+    "prompt-cost-calculator\tEstimate token count and API cost for a prompt across Anthropic, OpenAI, and Google models. Browser-only, no API calls, no tracking. Single HTML file, MIT licensed.",
+    "prompt-cache-inspector\tPaste two consecutive Anthropic request bodies and find the exact byte where your cached prefix broke, whether your breakpoints are legal, and whether caching pays for itself at your request rate.",
+    "profit-margin-and-markup-calculator\tMargin and markup describe the same profit against two different bases: margin divides profit by the selling price and can never reach 100 percent, while markup divides the same profit by cost and has no ceiling.",
+    "portfolio-rebalance-tool\tSet target allocations across buckets, enter what you currently hold in each, and get the exact dollar amount to buy or trim in every bucket to return to target.",
+    "pkce-generator\tGenerate an OAuth 2.0 PKCE code_verifier and S256 code_challenge in your browser with the WebCrypto API, plus a plain-language explainer of why PKCE exists.",
+    "percentage-calculator\tFour common percentage questions with clearly labeled inputs and live answers. No server, no tracking, no third-party scripts.",
+    "password-generator\tGenerate strong passwords and passphrases in your browser using the cryptographic random source (`crypto.getRandomValues`, never `Math.random`). See an entropy estimate in bits, a strength label, and copy any result with one click. No server, no t...",
+    "oss-license-picker\tPick the right open source license for your project. Four questions, plain-English summaries, full license text ready to paste.",
+    "open-graph-image-dimension-checker\tCheck a share image against Open Graph and Twitter card rules.",
+    "og-image-generator\tGenerate Open Graph social cards from text input. 1200x630, ready to download.",
+    "offer-comparison-calculator\tCompare two job offers side by side, fully in your browser. Base salary, signing bonus, annual bonus, equity, 401k match, benefits, PTO, and commute cost, with a live component-by-component difference table. No server, no tracking, no external dep...",
+    "oauth-flow-debugger\tPaste an OAuth URL, see what's in it, and get warnings about common mistakes. All decoding happens in your browser.",
+    "number-base-converter\tConvert an integer between binary, octal, decimal, hexadecimal, and any base from 2 to 36, in your browser. No server, no tracking, no third-party scripts.",
+    "mortgage-affordability-calculator\tHow much home your income supports, before a lender ever runs the numbers.",
+    "model-pickle-scanner\tDrop a .pt, .bin, .ckpt or .pkl and read its pickle opcodes in the browser without executing them, including exactly which global or opcode makes torch.load(weights_only=True) refuse the file.",
+    "mock-data-generator\tGenerate fake test data in your browser. No server, no tracking, no third-party scripts.",
+    "mime-type-lookup\tA fast, searchable lookup between file extensions and MIME (media) types, in both directions. Around 200 common types are built in as an inline table, so it works with no external dependencies and works offline.",
+    "metastable-failure-explorer\tSolve the retry-amplification fixed point for a service and its dependency, enumerate every equilibrium, and trace the hysteresis loop between the tipping point and the recovery point.",
+    "meta-og-tag-generator\tA single-file browser tool that turns a page title, description, and image into ready-to-paste meta, Open Graph, and Twitter Card tags, with live previews of how the page will look in search and on a social card.",
+    "mcp-tool-poisoning-scanner\tPaste an MCP server's tool definitions and statically scan them for prompt injection, hidden characters, tool shadowing, and exfiltration-shaped parameters before you install it.",
+    "mcp-config-generator\tBuild and validate MCP (Model Context Protocol) server configuration JSON in your browser. MCP is an open protocol for connecting tools and data sources to LLM clients; clients read a JSON config listing the servers to connect to. Getting that JSO...",
+    "markdown-table-generator\tBuild a table visually and copy clean GitHub Flavored Markdown.",
+    "lorem-ipsum-generator\tGenerate lorem ipsum placeholder text in your browser. No server, no tracking, no third-party scripts.",
+    "llms-txt-generator\tGenerate a spec-compliant llms.txt for your site. Browser-only, no signup, no API calls.",
+    "llm-vram-calculator\tEstimate the GPU memory a local LLM needs, with the arithmetic shown, an honest range instead of a fake-precise number, and a fits-or-not verdict for common GPUs.",
+    "llm-stream-inspector\tPaste a raw Server-Sent Events dump from a streaming LLM response and get it parsed, reassembled, and diagnosed in your browser.",
+    "llm-output-sink-scanner\tPaste a model response and see every URL your renderer would silently GET, every cell a spreadsheet would run as a formula, and every terminal escape that overwrites what you read.",
+    "llm-message-array-linter\tPaste the Anthropic `messages` array from a request that returned a 400 and get the exact block index that broke it, plus every index where the transcript can legally be truncated.",
+    "llm-judge-calibrator\tPaste an LLM judge's confusion matrix from a human-labeled calibration set and get a prediction-powered corrected pass rate with a confidence interval, beside Rogan-Gladen and its refusal states.",
+    "llm-json-repair\tPaste the broken JSON an LLM just handed you, get valid JSON back, plus a named diagnosis for every repair and the prompt change that prevents it next time.",
+    "kubernetes-manifest-security-scanner\tBrowser-based Kubernetes manifest scanner. Checks Pod Security Standards, capabilities, image hygiene, probes, and service-account hardening.",
+    "keycode-inspector\tPress any key and instantly see the JavaScript keyboard event fields for it: `event.key`, `event.code`, the deprecated `keyCode` and `which`, `event.location`, and which modifier keys are held. Like keycode.info, but a single self-contained file w...",
+    "keyboard-driven-todo\tA todo list with vim-style keyboard shortcuts. Single HTML file.",
+    "jwt-inspector\tDecode and verify JSON Web Tokens in your browser. No server, no tracking, no third-party scripts.",
+    "json-workbench\tFormat, validate, query (JSONPath), diff, and convert JSON entirely in your browser. No upload, no ads, no tracking.",
+    "json-to-typescript\tPaste any JSON value, get TypeScript interface declarations. Single HTML file.",
+    "json-to-json-schema\tPaste a JSON sample and generate a JSON Schema (draft 2020-12) that describes its shape. The tool infers types, marks present keys as required, builds item schemas for arrays, recurses into nested objects, detects common string formats, and turns ...",
+    "json-to-go-struct\tPaste JSON and generate Go structs with exported CamelCase field names, correct types, and json struct tags that preserve the original keys. Handles nested and anonymous structs and arrays of objects. Everything runs in your browser with no extern...",
+    "json-schema-to-tool-definition\tPaste a JSON Schema and generate a function/tool-calling definition in both the OpenAI function-calling format and the Anthropic tool format. No server, no tracking, no third-party scripts.",
+    "json-precision-auditor\tPaste JSON and see which number literals change value when parsed into IEEE 754 doubles, including the ones that re-print byte-for-byte identical to what you pasted.",
+    "json-path-tester\tPaste JSON and a JSONPath expression, see the matched values and their paths live, in your browser. No server, no tracking, no third-party scripts.",
+    "indie-saas-pricing-calculator\tSide-by-side pricing math for indie SaaS founders deciding between BYOK, bundled, and hybrid pricing.",
+    "image-to-data-uri\tConvert any image into a base64 data URI you can paste straight into HTML, CSS, or Markdown.",
+    "iam-policy-analyzer\tBrowser-based AWS IAM policy analyzer. Flags privilege-escalation paths, wildcards, missing conditions, and trust-policy issues.",
+    "http-header-analyzer\tPaste a raw HTTP response or request header block and get a per-header explanation plus a security posture summary. It parses text only, makes no requests, and runs entirely in your browser with no external dependencies. Works offline.",
+    "html-to-jsx-converter\tPaste HTML and get valid JSX you can drop into a React component. It renames the attributes React expects, converts inline styles to objects, self-closes void elements, and rewrites comments. The HTML is parsed with the browser's built-in parser a...",
+    "html-entity-encoder-decoder\tEncode text to HTML entities and decode entities back to text, in your browser. No server, no tracking, no third-party scripts.",
+    "htaccess-redirect-generator\tBuild Apache `.htaccess` redirect and rewrite rules in your browser. No server, no tracking, no third-party scripts.",
+    "heading-outline-checker\tA clean heading tree, and the structure problems search engines and screen readers trip on.",
+    "hash-identifier\tPaste a hash string and get a ranked list of the algorithms that could have produced it, based on length and format. It recognizes MD5, SHA-1, SHA-256, SHA-512, CRC32, bcrypt, argon2, NTLM, MySQL, base64-looking values, and several Unix crypt form...",
+    "gzip-size-estimator\tPaste text or code and see its raw byte size versus gzip and deflate compressed size, right in your browser. No server, no tracking, no third-party scripts.",
+    "git-command-builder\tFrom 'I want to...' to the exact git command. A task-first git helper for people who know what they want but not the incantation. Search for the goal in plain words ('undo last commit', 'delete branch', 'force push'), pick the task, and get the co...",
+    "ffmpeg-command-builder\tTask-first ffmpeg helper. Instead of digging through documentation, pick what you want to do (compress a video, make a GIF, trim a clip, extract the audio) and get the exact command, with every flag explained in plain language and honest warnings ...",
+    "eval-significance-calculator\tPaste two eval runs, or just the counts, and find out whether that 3-point score move is a real improvement or sampling noise.",
+    "eval-regression-viewer\tDrop two eval-run files (JSONL, JSON array, or CSV) and get a case-by-case regression diff: new failures, new passes, score deltas, and flaky cases, all in your browser.",
+    "env-var-checker\tCompare your .env.example (the committed reference) against your actual .env. Find missing variables, undocumented additions, and possible leaked secrets in either file.",
+    "emoji-shortcode-lookup\tA searchable table mapping common emoji to their unicode code points and shortcodes (like :smile:). Search by name or shortcode, or paste an emoji to reverse-look-up its code points and shortcode. All data is embedded in the page.",
+    "embedding-similarity-calibrator\tPaste your own embedding vectors and get the empirical cosine distribution of unrelated pairs, drawn against the exact closed-form null for random unit vectors in the same dimension.",
+    "embedding-cost-estimator\tEstimate embedding costs across 11 providers before you commit to a RAG strategy.",
+    "email-spam-score-checker\tA browser tool that scores your email content against 40 SpamAssassin-style rules locally. No upload, no API, no tracking.",
+    "email-header-analyzer\tPaste the raw headers of an email and this tool reconstructs the delivery path, surfaces the SPF, DKIM and DMARC results, and flags mismatches that can indicate spoofing. It is a defensive, educational tool that reads text only. No server, no trac...",
+    "e-e-a-t-auditor\tAudit any web page's HTML for E-E-A-T signals: Experience, Expertise, Authoritativeness, Trust. Browser-only.",
+    "duration-calculator\tExact time between two dates, business day counts with holiday exclusions, and add or subtract durations from any date, all in a single HTML file.",
+    "dockerfile-linter\tPaste a Dockerfile and get a list of best-practice warnings, each with a severity and a suggested fix. It is a static heuristic linter that reads your file line by line in the browser. No server, no tracking, no external dependencies.",
+    "dividend-compounding-calculator\tModel how reinvested dividends, ongoing contributions, and price appreciation compound over many years.",
+    "dca-visualizer\tCompare deploying a fixed amount of capital all at once against spreading it across several months, on a price path you control.",
+    "dark-mode-tester\tTest your light and dark color tokens side by side. See a full UI mockup in both modes and get WCAG contrast scores for every text/background pair.",
+    "curl-command-builder\tFill in a form and get a properly quoted `curl` command in real time. Method, URL, query params, headers, body and auth, plus the common toggles. It only builds the string, it never sends your request. No server, no tracking, no external dependenc...",
+    "cubic-bezier-editor\tA visual CSS `cubic-bezier()` easing editor with draggable control points, a live animation preview, and a copy button. No server, no tracking, no third-party scripts.",
+    "csv-to-anything\tConvert CSV or TSV input to JSON, SQL inserts, Markdown table, or TypeScript types. Single HTML file.",
+    "css-specificity-calculator\tType any CSS selector and get its specificity as (a, b, c), with a plain-English breakdown of exactly what contributed. Switch to compare mode and it tells you which of two selectors wins a conflict and why. Runs entirely in your browser, no serve...",
+    "css-grid-generator\tA visual CSS Grid builder. Set columns, rows, track sizes, and gaps, preview the grid live, name a few areas, and copy the generated CSS. No server, no tracking, no third-party scripts.",
+    "css-flexbox-playground\tAn interactive CSS flexbox visualizer. Adjust the container and per-item flex properties, watch a live preview update, and copy the generated CSS. Everything runs in your browser with no external dependencies and works offline.",
+    "css-clamp-calculator\tCompute a CSS `clamp()` for fluid typography and spacing from a min and max viewport and size, with correct `vw`-based linear interpolation and the math explained. No server, no tracking, no third-party scripts.",
+    "css-animation-generator\tBuild CSS @keyframes animations visually. Set the name, duration, delay, timing function, iteration count, direction, and fill mode, edit keyframe stops with per-stop transform and opacity, preview the animation live, and copy the finished CSS wit...",
+    "csp-builder\tBuild Content-Security-Policy headers visually. Pick directives, toggle keywords, add custom hosts, copy as a header / meta tag / Express snippet.",
+    "cron-builder\tVisual cron expression builder with human-readable description and the next 5 firing times. Single HTML file.",
+    "context-budget-planner\tPlan an agent's context window like a budget: allocate it across every consumer, watch the stacked bar, and find the overflow before production does.",
+    "color-format-converter\tConvert a color between HEX, RGB, HSL, and HSV with a live swatch. No server, no tracking, no third-party scripts.",
+    "claude-md-generator\tInteractive builder for the per-project markdown file every coding agent should read first. Outputs CLAUDE.md (Claude Code) or AGENTS.md (general convention).",
+    "claude-eval-harness\tRun the same prompt against multiple Claude models side-by-side. Compare outputs, latency, and cost in one click. BYOK, single HTML file, deploy free via GitHub Pages. MIT licensed.",
+    "cidr-subnet-calculator\tEnter an IPv4 address with a CIDR prefix (for example `192.168.1.0/24`) and get the full breakdown: network address, broadcast address, netmask, wildcard mask, first and last usable host, total and usable host counts, and a binary view of the addr...",
+    "chmod-calculator\tA Unix file-permission calculator. Toggle read, write, and execute for owner, group, and other in a 3x3 grid, and watch the octal value (like 755) and the symbolic string (like rwxr-xr-x) stay in sync. Every representation is editable and drives t...",
+    "chatml-message-builder\tVisually build a chat messages array and export it in OpenAI-style and Anthropic-style JSON. No server, no tracking, no third-party scripts.",
+    "box-model-visualizer\tAn interactive CSS box model. Adjust content size, padding, border, and margin per side, toggle box-sizing, and see a live nested diagram with computed total dimensions plus copyable CSS. Everything runs in your browser with no external dependenci...",
+    "bcrypt-playground\tAn educational, fully client-side bcrypt playground. Generate and verify bcrypt hashes, inspect the anatomy of a hash string, and learn why bcrypt is the right tool for password storage. Everything runs in your browser with no external dependencies.",
+    "base64-url-encoder-decoder\tEncodes and decodes text two ways: Base64, in the standard or URL-safe alphabet, and percent-encoding for URLs.",
+    "aspect-ratio-calculator\tTurn pixel dimensions into a simplified ratio, or solve for a missing dimension from a ratio. No server, no tracking, no third-party scripts.",
+    "api-key-redactor\tPaste logs, code, config, or chat transcripts and get back a redacted copy with likely secrets replaced by labeled placeholders like `[REDACTED:aws-access-key]`. Built for the moment before you paste something into a bug report, a support ticket, ...",
+    "amazon-product-url-cleaner\tStrip tracking parameters from Amazon product URLs, extract the ASIN, and generate a clean canonical URL.",
+    "ai-citability-scorer\tPaste a paragraph, get scored on AI citation likelihood. Browser-only, no signup.",
+    "agent-trace-viewer\tVisualize agent tool-call traces as a flame graph. Drop in JSON from an Anthropic or OpenAI trace and see what your agent actually did.",
+    "agent-sandbox-linter\tPaste an AI agent's command allowlist and host allowlist and see which permitted programs are documented to run code from their own argv, and which host wildcards anyone can provision a name under.",
+    "agent-diff-reviewer\tPaste a unified diff (from Claude Code, Cursor, Aider, or git diff), get a structured review with scary-changes detection.",
+    "accessibility-quick-audit\tPaste an HTML snippet or a full page's source and get a real client-side accessibility audit. The tool parses your HTML safely (it never executes it) and reports concrete WCAG-aligned issues with a severity, the offending element, the relevant suc...",
+    "command-center\tA local-first, settings-driven business intelligence dashboard.",
+    "yaml-type-coercion-auditor\tPaste YAML and see every scalar that resolves to a different type, or a different value, depending on which parser reads the file.",
+    "staged-rollout-cohort-simulator\tRuns the electron-updater staged rollout formula against freshly generated install ids and shows that a staged rollout is a fixed cohort, not a rotating sample.",
+    "electron-release-matrix-auditor\tPaste a GitHub Actions workflow. It reports which release artifacts the matrix legs will fight over, and whether two legs can create two draft releases for one tag.",
+    "yaml-to-json\tConvert YAML to JSON and back, in your browser. No server, no upload, no tracking.",
+    "uuid-and-ulid-generator\tRandom v4 UUIDs and lexicographically sortable ULIDs, generated in your browser.",
+    "utm-campaign-builder\tA single-file browser tool that builds clean, consistent UTM-tagged campaign URLs for email, social, and ads, so your analytics stay readable.",
+    "unix-timestamp-converter\tA single-file browser tool that converts a unix timestamp to UTC, local, and ISO 8601 time and back, detecting seconds versus milliseconds automatically and showing a relative time readout.",
+    "tool-ergonomics-sandbox\tLint your LLM tool definitions for model-tripping ambiguity, then play the model yourself: build tool calls by hand against live schema validation and export the transcript as an eval case.",
+    "token-cost-estimator\tEstimates the token count of a prompt and the API cost of running it at any provider's rates, with no API key and no calls.",
+    "tip-and-split-calculator\tSet a tip, split the check, or round each share up to a clean total.",
+    "svg-badge-generator\tGenerate README status badges as pure inline SVG with copy-ready markdown and HTML embeds - no badge service, no rate limits, works offline.",
+    "slug-generator\tA single-file browser tool that turns a title or phrase into a clean URL slug: lowercase, hyphen-separated, punctuation removed, accents optionally stripped, with optional stop-word removal and a length cap.",
+    "sitemap-xml-generator\tTurns a list of page URLs into a valid sitemap.xml, with lastmod, changefreq, and priority on every entry.",
+    "savings-goal-planner\tSolve for the monthly amount, or for how long the goal takes.",
+    "runway-and-burn-calculator\tTakes cash on hand, monthly expenses and monthly revenue and returns months of runway, net monthly burn and the approximate zero-cash month, or says outright when revenue already covers expenses; one offline HTML file.",
+    "robots-txt-ai-builder\tBuild a robots.txt with named AI crawler allow/block rules for 17 cataloged bots. Browser-only, no signup.",
+    "robots-llms-txt-generator\tA single-file browser tool that generates a robots.txt naming the major AI crawlers and an llms.txt skeleton that points AI answer engines at your key pages.",
+    "retry-backoff-calculator\tVisualize exponential backoff with jitter for API retry logic: per-attempt delay table, worst-case wait, bar chart, and a copyable JavaScript snippet.",
+    "real-return-calculator\tSee how inflation erodes purchasing power over time and what nominal return you need just to break even.",
+    "rag-chunk-visualizer\tSee how four different chunking strategies split your text. Side by side.",
+    "prompt-diff\tCompare two versions of a prompt and see exactly what changed. Word, character, and line-level diffs. Single HTML file, browser-only.",
+    "pricing-tier-comparison-builder\tBuilds two to four pricing tiers, previews them as cards, and copies a markdown comparison table. The table lists every feature across all tiers as rows, with a check where a tier includes it, so the differences are easy to read.",
+    "pricing-page-patterns\tTen pricing page layouts with notes on when each one fits and what to watch out for. Browse rendered examples or copy the HTML.",
+    "open-graph-preview-tester\tA single-file browser tool that previews how a link's Open Graph card will look when shared, from an og:title, og:description, og:image URL, and canonical URL, with length hints and a ready-to-paste set of og and twitter meta tags.",
+    "net-worth-snapshot\tAssets minus what you owe, on one clean sheet.",
+    "markdown-toc-generator\tGenerate a linked table of contents from markdown headings, entirely in your browser.",
+    "markdown-previewer\tLive markdown to HTML preview with one-click copy, in a single HTML file.",
+    "loan-amortization-visualizer\tA single-file browser tool that takes a loan amount, an annual interest rate, a term in years, and an optional extra monthly payment, and shows the monthly payment, the total interest, the total paid, and how the balance falls over the term.",
+    "json-ld-schema-builder\tBuilds valid JSON-LD structured data for a local business, organization, software application, or article.",
+    "json-formatter-and-validator\tFormats, minifies, and validates JSON in the browser. It uses the browser's own JSON parser, so what it accepts matches what your code will accept, and on an error it reports the parser's message, which usually names where the problem is.",
+    "hash-generator\tCompute MD5, SHA-1, SHA-256, and SHA-512 hashes locally in your browser.",
+    "effective-hourly-rate-calculator\tSingle-file browser tool that divides income after expenses by every hour worked, billable and not, and reports your effective rate, the nominal rate, total hours and the per-hour gap between them.",
+    "debt-payoff-planner\tA single-file browser tool that compares the two common debt payoff methods, snowball and avalanche, and shows your debt-free date, total interest, and how much interest the plan saves against paying only minimums.",
+    "curl-to-fetch\tPaste a curl command and get JavaScript fetch and Python requests code, generated entirely in your browser.",
+    "compound-interest-visualizer\tShows how a starting amount and monthly contributions grow over time with monthly compounding. It returns the ending balance, the total you put in, and the growth on top, and plots the balance year by year with contributions and growth shaded separately.",
+    "claude-skills-validator\tLint a Claude Skill SKILL.md file for spec compliance and triggering quality. Browser-only, single HTML file.",
+    "case-converter\tConvert text between camelCase, snake_case, kebab-case, CONSTANT_CASE, and more.",
+    "canonical-hreflang-tag-helper\tBuilds a canonical link tag and a set of hreflang alternate tags for the language and region versions of a page, plus an optional x-default.",
+    "cagr-and-rule-of-72-calculator\tCompound annual growth rate between two values, and how long money takes to double.",
+    "break-even-units-calculator\tSingle-file browser tool that turns fixed costs, unit price and variable cost into contribution margin, break-even units and revenue at break-even, with revenue and cost lines plotted on an SVG grid.",
+    "api-changelog-rss\tPaste two OpenAPI specs, get a structured changelog: added, removed, changed, breaking. Export as Markdown.",
+    "dredge\tSurface what search engines bury. OSINT toolkit for suppressed records, deleted content, and adversarially-buried search results.",
+    "agent-leaks\tScan and redact leaked secrets sitting in your AI agent session transcripts. Your agent ran `cat .env` once, and that key is in ~/.claude/projects forever.",
+    "agent-cost\tRetrospective token and cost forensics for AI agent sessions, with runaway-loop detection. No proxy, no setup, it reads the transcript you already have.",
+    "agent-blast-radius\tReconstruct every irreversible action an AI agent took in a session, from the transcript you already have. Forensics for unattended agents.",
+    "agent-receipts\tAudit what your coding agent claimed against what it actually did. Your agent says 'all tests pass', so prove it.",
+    "agent-rules\tCheck whether your coding agent actually followed its CLAUDE.md / AGENTS.md / .cursorrules. Linters check the file; this checks the behavior.",
+    "span-offset-debugger\tPaste text and a span, name the system that produced the offsets and the one that reads them, and see the same numbers select four different substrings.",
+    "ai-deletion-and-retention-reference\tWhere user data actually lives in an AI stack, what deleted honestly means in each store, and the two places a delete request cannot reach: trained weights and immutable backups.",
+    "mcp-server-privilege-inventory\tPaste an MCP client config and get a privilege inventory: which servers launch a subprocess as your user, how mutable each code reference is, and which secrets you hand each one.",
+    "threat-modeling-worksheets\tSeven threat-modeling worksheets (STRIDE, LINDDUN, PASTA, attack tree, DFD, trust boundary, abuse case) plus five worked examples (web, mobile, ML, IaC, IoT).",
+    "solo-saas-launch-checklist\tA pre-launch checklist for solo developers shipping a SaaS. About 100 items organized by category, with notes on which items are critical, which are nice-to-have, and which only matter at certain scales.",
+    "security-legal-baseline\tA pre-launch security and legal checklist for solo builders shipping web products. About 250 items: secrets, headers, auth, authorization, input/output, rate limits, data handling, AI/LLM specifics, plus privacy policy, GDPR/CCPA rights, vendor management, business protection.",
+    "secrets-leak-response-runbook\tEight runbooks for responding to specific secret leaks: AWS keys, GCP service accounts, GitHub PAT, Slack webhooks, DB credentials, JWT signing keys, TLS keys, OAuth client secrets.",
+    "indie-saas-financial-baseline\tMoney discipline for solo SaaS operators. The boring infrastructure work that keeps an indie business out of trouble with the IRS, with banks, and with itself.",
+    "indie-newsletter-launch-checklist\tPre-launch checklist for indie newsletter operators. ESP setup, deliverability, list hygiene, growth, compliance, monetization.",
+    "incident-response-runbooks\tTen incident response runbooks following a common skeleton: trigger, immediate, investigation, containment, eradication, recovery, post-incident.",
+    "image-compressor\tCompress and resize images in your browser. Fully local, no upload, no account.",
+    "gradient-generator\tBuild CSS linear, radial, and conic gradients with a live preview and one-click copy.",
+    "byok-patterns\tProduction reference implementations for \"Bring Your Own Key\" patterns. Three deeply-built examples: browser-only (single HTML), WordPress plugin (encrypted storage), Node proxy server (zero deps). Each includes security model, audit, and customization guide. MIT licensed.",
+    "ai-llm-security-audit\tTen audit sections covering practical LLM security: prompt injection (direct + indirect), jailbreaks, RAG, output handling, model supply chain, training data, agent tools, multimodal, eval.",
+    "agent-failure-modes\tThe recurring ways LLM agents fail in production, with detection signals and mitigations for each.",
+    "0xelitesystem\tOperator hub: zero-dependency tools, agent accountability suite, plain-language references.",
+    "claude-skills-templates\tFive production-ready Claude Skill templates: one-pager writer, code reviewer, brand voice keeper, CSV cleaner, decision-doc generator. Each demonstrates a different SKILL.md pattern. Drop into Claude Code or Claude.ai. MIT licensed.",
+    "claude-mcp-starter\tBare-minimum Model Context Protocol server templates. Two equivalent implementations: Node/TypeScript and Python. Pick one, copy the folder, edit the tools, ship.",
+    "claude-skills-collection\tCurated, working Claude Skills you can drop into any project. Each skill is in its own folder with SKILL.md plus any reference files.",
+    "watermarks-remover\tStrip multi-vendor AI provenance marks: Unicode text hygiene, statistical rewrite hooks, and C2PA/metadata from PNG/JPEG/SVG/PDF/DOCX/HTML/MD",
+    "youtube-thumbnail-tester\tPreview a thumbnail and title across the YouTube placements that actually matter: search results, home feed, mobile feed, sidebar, notifications, channel page.",
+    "youtube-creator-checklist\tPre-publish, post-publish, and monthly review checklists for YouTube creators. Useful as a final pass before hitting publish, and as a recurring quality discipline.",
+    "video-script-outline-templates\tStructural skeletons for common video formats. Outline-level only, the bones, not the script.",
+    "video-description-templates\tStructured description box templates for different video types. Optimized for clarity, discoverability, and getting required disclosures above the fold.",
+    "vibe-coding-test-strategies\tHow to test code an AI wrote. Different from testing human-written code because AI fails differently.",
+    "vibe-coding-anti-patterns\tThings AI coding agents do badly, with detection strategies and fixes. Field-observed, not speculative.",
+    "unicode-character-inspector\tPaste or type text and get a per-character breakdown. For every character you see the glyph, its Unicode code point (U+XXXX), general category, rough block, UTF-8 byte sequence, UTF-16 code units, and the JS, HTML, and CSS escape forms. Invisible ...",
+    "structured-data-examples\tReal-world JSON-LD schema examples for every business type. Production-grade, ready to study and adapt.",
+    "rag-evaluation-rubrics\tPractical evaluation rubrics for RAG (retrieval-augmented generation) systems. Concrete checks, not vague metrics.",
+    "prosegrain\tA linter for AI-generated prose patterns. Catches structural cadence and false agency, not just word lists.",
+    "prompt-injection-test-suite\tA categorized corpus of prompt injection attempts. Use to test your LLM product's defenses before attackers do.",
+    "product-review-honesty-guide\tA practical guide for honest product reviews: how to disclose how you got the product, when to say no to incentivized reviews, and what makes a review trustworthy.",
+    "position-sizing-calculator\t**Not financial advice.** This is a math calculator. It does no recommendations, no live data, no advice tailored to your situation. Position sizing without a tested edge is just slower losing. Pair this with your own backtested rules and a licens...",
+    "password-strength-meter\tEstimates a password's character-set entropy in bits and a rough offline crack time, scoring it from very weak to very strong.",
+    "oss-readme-template\tA battle-tested README structure for open source projects. Skip the AI cliches. Use the structure that actually answers what visitors want to know.",
+    "meta-robots-tag-helper\tBuilds a meta robots tag and the matching X-Robots-Tag header by toggling crawl and index directives.",
+    "mcp-server-registry\tA community-maintained directory of public MCP (Model Context Protocol) servers. Find one to use, or list yours.",
+    "llm-timeout-budget\tModel your worst-case LLM request end to end, check it against every timeout between your code and the API, and find out whether streaming saves you or does nothing at all.",
+    "llm-pricing-data\tMachine-readable pricing for major LLM providers. JSON files, community-maintained, structured for programmatic use.",
+    "llm-eval-datasets-starter\tSmall, public-domain evaluation datasets for LLM applications. Plus the scoring scripts and format spec so you can actually use them.",
+    "legal-pages-starter\tTerms of Service, Privacy Policy, and a list of common disclaimers as fill-in-the-blanks templates. For solo developers and small SaaS launches who need something better than nothing while they wait to afford a lawyer.",
+    "landing-page-anti-patterns\tA catalog of 50 things that make landing pages worse, organized by category. Use this as a checklist when reviewing your own pages or when critiquing others.",
+    "jwt-decoder\tDecodes the header and payload of a JSON Web Token so you can read its claims. It decodes only and never verifies the signature, because a JWT's first two parts are base64url-encoded, not encrypted, and verification needs a key that belongs on a server, not in a browser tool.",
+    "invoice-total-builder\tBuilds an invoice from line items, applies a discount and a tax rate, and totals it. Discount applies to the subtotal first, then tax applies to the discounted amount.",
+    "invoice-late-fee-calculator\tTakes an invoice amount, due date, flat fee, annual rate and grace period, then returns days overdue, interest accrued and the total owed, stamped current or past due; one HTML file, nothing leaves the browser.",
+    "image-placeholder-generator\tGenerate lightweight placeholder images as inline SVG data URIs. No raster encoding, no network request. Set the size, colors, label, and style, then copy the output in the format you need.",
+    "favicon-generator\tMake a favicon from text, an emoji, or an uploaded image, right in your browser.",
+    "founder-customer-research-templates\tPlain-text templates for talking to your customers and prospects. Discovery interviews, churn calls, surveys, jobs-to-be-done worksheets, win/loss debriefs.",
+    "dotenv-example-generator\tPaste a real .env file and get a sanitized .env.example with secret values stripped and comments kept, ready to commit, all in your browser.",
+    "cursor-rules-collection\tCurated .cursorrules and CLAUDE.md files for popular stacks. Drop one into your project and your AI coding assistant stops fighting the conventions.",
+    "cron-expression-explainer\tReads a standard five-field cron expression, minute, hour, day of month, month, and day of week, and explains it in plain English, field by field and as one sentence.",
+    "color-palette-from-image\tExtract a dominant color palette from any image, right in your browser. No server, no tracking, no third-party scripts.",
+    "color-blindness-simulator\tPreview how an image or a set of colors reads under common color-vision deficiencies, all in your browser. No server, no tracking, no third-party scripts.",
+    "color-contrast-checker\tA single-file browser tool that takes a text color and a background color and reports the contrast ratio between them, checked against the WCAG 2.1 thresholds for normal and large text at AA and AAA, with a live preview of the two colors together.",
+    "box-shadow-generator\tVisual CSS box-shadow builder with live preview, stacked layers, inset support, and copy-ready output.",
+    "byok-security-checklist\tA security threat model for \"Bring Your Own Key\" (BYOK) products. Lists the attack vectors, the mitigations, and what you can and cannot honestly tell users.",
+    "breakeven-runway-calculator\tBootstrap-first runway calculator. Cash on hand, monthly burn, MRR growth, and churn.",
+    "api-mock-recipes\tWorking code for mocking the API calls in your tests. Stripe, OpenAI, Anthropic, Google APIs, SendGrid, Twilio.",
+    "api-security-audit-checklist\tSeven API security audit checklists: REST OWASP API Top 10, GraphQL, gRPC, BOLA/IDOR, mass assignment, broken auth, rate limiting and introspection.",
+    "ai-product-disclaimers\tCopy-paste disclaimers for AI-powered features. For developers shipping AI products who need accurate, non-overclaiming language to put on their pages.",
+    "ai-generated-code-review-rubrics\tCode review rubrics specifically calibrated for AI-generated code. Different from human-code rubrics because AI fails differently, confident-but-wrong patterns, hallucinated APIs, fake comprehensiveness, than humans do.",
+    "agentic-workflow-patterns\tPatterns for working with coding agents productively. How to scope work, validate output, recover from stuck agents, and know when to take over.",
+    "ai-coding-prompt-recipes\tSpecific prompt recipes for common dev tasks with coding agents (Claude Code, Cursor, Aider, Continue, etc.).",
+    "affiliate-disclosure-templates\tPlain-English, FTC-compliant disclosure language for video, blog, social, podcast, and email. Copy what you need.",
+    "youtube-description-seo-reference\tA plain-language reference on writing YouTube video descriptions and companion content that get found, by YouTube search, by Google, and by AI answer engines.",
+    "wordpress-hardening-checklist\tA practical reference for making a WordPress site harder to break into and easier to recover. It covers accounts and logins, updates and plugins, file and server settings, database and backups, and transport and headers, ending in a single checklist you can run on any site.",
+    "websockets-basics-reference\tA plain-language reference on WebSockets: the protocol that gives a web page a persistent, two-way connection to a server. It covers what a WebSocket is, how the connection starts as an HTTP request and upgrades, when to reach for it instead of po...",
+    "webhook-basics-reference\tFive chapters of plain-language reference on webhooks for someone wiring services together, covering endpoints and fast responses, signature verification, retries and duplicates, and common mistakes.",
+    "webassembly-basics-reference\tA plain-language reference on WebAssembly, or wasm. It covers what wasm is, how it runs in the browser and outside it through WASI, the boundary between wasm and JavaScript, when wasm helps versus when plain JavaScript is the better choice, which ...",
+    "video-to-blog-companion-seo-reference\tA plain-language reference on turning a video into an SEO companion blog post: the transcript, the summary, chapters and timestamps, VideoObject structured data, and internal linking.",
+    "warm-outreach-vs-cold-reference\tA plain-language reference on warm outreach versus cold outreach: why reaching people who already know you outperforms messaging strangers, what counts as warm, how to build warmth before you need it, and why cold outreach carries cost and risk.",
+    "valuation-multiples-basics-reference\tA plain-language reference on valuation multiples: shorthand ratios that compare a company's price to a measure of its business, used to gauge whether a stock looks cheap or expensive relative to peers.",
+    "unit-economics-basics-reference\tA plain-language reference on unit economics: the profit and cost of a single unit of a business, whether that unit is one customer, one order, or one subscription.",
+    "unicode-and-normalization-reference\tA plain-language reference on Unicode as a system of meaning, not bytes. It covers code points versus code units, planes and the Basic Multilingual Plane, surrogate pairs, grapheme clusters and why one emoji can be many code points, the four norma...",
+    "titles-and-meta-descriptions-reference\tFive chapters on writing the search snippet: how the title tag and meta description differ, writing each one, fitting them before truncation, and the common mistakes that waste the slot.",
+    "timezone-and-utc-basics-reference\tA plain-language reference on handling time correctly in software: the difference between UTC and local time, what offsets and time zones actually are, why daylight saving time breaks naive assumptions, and how to represent timestamps unambiguousl...",
+    "subnetting-and-cidr-reference\tA plain-language reference on IPv4 addressing and subnetting. It covers what an IP address and subnet mask are, CIDR slash notation, the difference between network, broadcast, and host addresses, how to compute the range a subnet covers, the priva...",
+    "structured-output-and-json-mode-reference\tA plain-language reference on getting reliable structured output from language models: JSON mode, tool and function calling, schema enforcement, validation and retries, prompting for strict JSON, and the failure modes to expect.",
+    "sql-joins-reference\tA plain-language reference on SQL joins: the operations that combine rows from two or more tables. It covers each join type (INNER, LEFT, RIGHT, FULL OUTER, CROSS, and self joins) with small example tables and the exact result rows, plus the mista...",
+    "sql-injection-basics-reference\tA plain-language reference on SQL injection: the vulnerability that lets an attacker change the meaning of a database query by feeding it crafted input. It covers what the attack is, how string-concatenated queries get exploited, why parameterized...",
+    "short-form-video-hooks-reference\tA plain-language reference on hooks for short-form video on Shorts, Reels, and TikTok: the first one to three seconds that decide whether a viewer stays or scrolls.",
+    "solo-operator-launch-checklist\tA practical pre-launch checklist for a solo operator shipping a product or site: the legal, security, technical, content, and distribution items to confirm before you go live.",
+    "semantic-versioning-reference\tSemantic Versioning (SemVer) is a naming convention for software releases that turns a version number into a promise about compatibility. It gives every release a three-part number so that anyone depending on your code can predict, at a glance, wh...",
+    "security-headers-reference\tA plain-language reference on HTTP security headers: the response headers that tell browsers to behave more safely, what each common one does, why they matter, and a sensible baseline to start from.",
+    "secrets-management-reference\tFive chapters on handling API keys, tokens and private keys: what counts as a secret, where they must never go, environment variables versus vaults, rotation and least privilege, and what to do after a leak.",
+    "schema-types-overview-reference\tA reference on choosing and applying structured data types, covering the types most sites need, required and recommended properties, validation, and marking up only what is on the page.",
+    "sales-tax-nexus-awareness-reference\tA plain-language reference for solo operators and small sellers on sales tax nexus: what it is, how economic nexus changed the rules, why selling into a state can create a tax obligation there, and what questions to ask.",
+    "retail-vs-smart-money-field-guide\tA plain-language reference for what people mean by \"retail\" and \"smart money,\" what market data can and cannot tell you about each, and the common ways the distinction gets misread.",
+    "rest-api-design-basics-reference\tFive chapters of plain-language reference on REST API design, covering resource naming, HTTP methods and idempotency, status codes, offset versus cursor pagination, error bodies and HATEOAS.",
+    "regular-expressions-basics-reference\tA plain-language reference on regular expressions: the building blocks (literals, character classes, quantifiers, anchors, groups, alternation), a brief look at lookarounds, and the common pitfalls including catastrophic backtracking.",
+    "refund-and-chargeback-policy-reference\tA plain-language reference on refund policies and chargebacks for small sellers: why a clear refund policy protects you, what it should say, the difference between a refund and a chargeback, how to reduce chargebacks, and how to handle one.",
+    "redirects-301-vs-302-reference\tA redirect sends a visitor or a crawler from one URL to another.",
+    "reading-an-earnings-report-reference\tA plain-language reference on how to read a company's earnings report: what the three financial statements show, the headline numbers that matter, how results are judged against expectations, and what actually moves a stock when earnings come out.",
+    "rate-limiting-and-abuse-reference\tRate limiting caps how many requests a caller can make in a given time, so that no single user, script, or attacker can overwhelm your service, run up your costs, or hammer a sensitive endpoint.",
+    "rag-basics-reference\tFive chapters walking the RAG loop end to end: chunking documents, embeddings, retrieval and ranking, grounding answers in sources with citations, and when RAG is the wrong tool.",
+    "prompt-templates\tProduction prompts that target specific failure modes of LLM behavior: AI slop, sycophantic recommendations, shallow code review, unstructured output. MIT licensed. Tested with Claude and GPT-4o.",
+    "prompt-injection-defense-reference\tDefensive reference for people building on language models, covering direct versus indirect injection, the controls that reduce risk, the ones that only feel safe, and least-privilege design.",
+    "privacy-policy-and-cookie-consent-basics-reference\tA plain-language overview of privacy policies and cookie consent: what a privacy policy should cover, the categories of cookies, how to build a consent banner that respects users instead of tricking them, and when consent is actually required.",
+    "pricing-psychology-reference\tPeople do not judge a price against some absolute sense of value. They judge it against other prices, against what they expected, and against how the offer is framed.",
+    "permission-email-vs-spam\tA plain-language reference on the difference between permission-based email and spam, why permission is the whole game for email that works, what legally counts as spam, and how to build and maintain a list honestly.",
+    "position-sizing-and-risk-reference\tA plain-language reference on position sizing: deciding how much to put into a single position based on how much you are willing to lose, not on how confident you feel.",
+    "platform-deplatforming-runbook\tA practical runbook for creators and small operators who depend on platforms they do not control. It covers how to prepare before anything goes wrong, how to recognize a reach collapse or suspension, what to do in the first hours, how to appeal, and how to rebuild.",
+    "password-hashing-reference\tA plain-language reference on how to store user passwords safely. It covers why plaintext, encryption, and fast hashes are all wrong for this job, what salting and peppering actually do, the three algorithms worth using (bcrypt, scrypt, argon2), h...",
+    "options-literacy-glossary\tA definitions-only reference for the vocabulary of options. It explains what the terms mean so you can read and understand options discussion.",
+    "oauth-and-sso-basics-reference\tA plain-language reference on OAuth 2.0 and single sign-on: the roles involved, the authorization code flow with PKCE, the three kinds of tokens, scopes, OpenID Connect, how SAML and OIDC differ, and the common mistakes.",
+    "mcp-basics-reference\tA plain-language reference on the Model Context Protocol (MCP): what it is, why it exists, the primitives it defines (tools, resources, and prompts), how clients and servers relate, how they talk to each other, and a minimal mental model you can build from.",
+    "mcp-2026-spec-migration-reference\tA plain-language walkthrough of the MCP 2026-07-28 specification release and what it changes for anyone running an existing MCP server, written against the release candidate.",
+    "markdown-syntax-reference\tA plain-language reference for practical Markdown: the syntax you actually look up when writing a README, an issue, or docs. It covers headings, emphasis, lists, links, images, code, blockquotes, tables, task lists, and the escaping and line-break...",
+    "local-first-software-reference\tA plain-language reference on what local-first software actually means, the architecture patterns behind it, and the honest tradeoffs, written by practitioners who build local-first tools.",
+    "logging-and-observability-basics-reference\tA plain-language reference on logs, metrics and traces for working developers, covering structured logging, choosing log levels, the PII and secrets to keep out of logs, and symptom-based alerting.",
+    "local-llm-vs-api-reference\tA plain-language reference on running an AI model locally versus calling a provider API: what each means, the real tradeoffs in cost, privacy, capability, and effort, and when each one fits.",
+    "local-directory-seo-pack\tA complete kit for building a local business directory that search engines and AI answer engines can read and cite.",
+    "lead-magnet-playbook-reference\tA plain-language reference on lead magnets: the free thing you offer in exchange for an email address.",
+    "landing-page-conversion-reference\tA landing page exists to get one specific action from a visitor: sign up, buy, book, subscribe. It converts when the visitor quickly understands what is offered, believes it is for them, trusts you enough to act, and meets little friction in doing so.",
+    "jwt-vs-session-reference\tA plain-language reference on the two common ways to keep a user logged in: server-side session cookies and stateless JSON Web Tokens (JWTs). It covers how each one works, the difference between storing session state on the server and carrying sig...",
+    "inflation-and-real-returns-basics-reference\tA plain-language reference on inflation and real returns: the difference between the number on your statement and what that money can actually buy.",
+    "internal-linking-hub-spoke-reference\tA plain-language reference on the hub-and-spoke model of internal linking: organizing your site so a central hub page on a topic links to detailed spoke pages and they link back, building topic authority and helping both readers and search engines understand your site.",
+    "indie-operator-bookkeeping-basics\tA plain-language reference for solo operators who need to keep their business money straight without becoming an accountant.",
+    "image-seo-and-alt-text-reference\tA plain-language reference on making images work for search and for people: descriptive filenames, alt text that serves both accessibility and SEO, useful captions, correct dimensions and lazy loading, image structured data, and modern formats like WebP and AVIF.",
+    "idempotency-and-safe-retries-reference\tA plain-language reference on idempotency in APIs. It covers what idempotent means, which HTTP methods are safe and idempotent, how idempotency keys make POST requests safe to retry the way payment APIs do, why at-least-once delivery forces you to...",
+    "image-formats-reference\tA plain-language reference on the image formats used on the web: JPEG, PNG, GIF, WebP, AVIF, and SVG. It covers the concepts that separate them (lossy versus lossless, transparency, animation, raster versus vector), what each format is good at, a ...",
+    "http-status-codes-reference\tA plain-language reference on HTTP status codes: what the five classes mean, the specific codes that actually come up in real API and web work, and when to use each one correctly.",
+    "https-and-tls-basics-reference\tFive chapters of plain-language reference on HTTPS and TLS, covering certificates and how trust is decided, HSTS, mixed content, and renewal and configuration checks that keep it healthy.",
+    "graphql-basics-reference\tA plain-language reference on GraphQL: a query language for APIs where the client asks for exactly the fields it wants from a single endpoint. It covers the schema and type system, the difference between queries, mutations, and subscriptions, how ...",
+    "git-basics-reference\tA plain-language reference on the fundamentals of Git: the three areas your work moves through, the core commands you use every day, how branches and merging work, the difference between rebase and merge, how to undo changes safely, and what .gitignore is for.",
+    "geo-audit-checklist\tA page-by-page checklist for auditing a site for AI engine citability. ChatGPT, Claude, Perplexity, Gemini, Google AI Overviews.",
+    "fine-tuning-vs-rag-vs-prompting-reference\tFive chapters comparing prompting, RAG and fine-tuning as ways to shape model output, what each one changes, what each costs, and how to choose between them or combine them.",
+    "feature-flags-basics-reference\tA plain-language technical reference on feature flags for working developers.",
+    "etf-vs-index-fund-basics-reference\tA plain-language reference comparing exchange-traded funds (ETFs) with index mutual funds. Both can track the same index and hold the same stocks, yet they differ in how they are structured, how they trade, what they cost, how they are taxed, and what minimums they require.",
+    "faq-schema-reference\tA plain-language reference on FAQ structured data: marking up question-and-answer content so search engines and AI systems understand it as questions and answers, when it helps, how to write FAQs that get used, and the rules that keep the markup valid and honest.",
+    "evaluating-llm-output-reference\tFive chapters on testing model output without a research budget: choosing criteria, building an eval set with known good answers, picking script versus model versus human judges, and catching regressions.",
+    "embeddings-and-vector-search-basics-reference\tA plain-language reference on embeddings and vector search: what a vector embedding actually is, how similarity is measured, what a vector database does, how text is chunked and retrieved, and when embeddings genuinely help versus when they do not.",
+    "emergency-fund-and-runway-reference\tA plain-language reference for indie operators on sizing an emergency fund and tracking runway, covering how much to hold, personal versus business cushions, where to keep the cash, and rebuilding after a drawdown.",
+    "email-deliverability-reference\tA plain-language reference on reaching the inbox, in five chapters: why mail lands in spam, SPF, DKIM and DMARC, sender reputation and warmup, list hygiene, and content that helps.",
+    "electron-security-basics-reference\tPlain-language notes on securing Electron desktop apps, from a team that ships many local-first Electron apps and treats every renderer like a hostile web page.",
+    "eeat-signals-reference\tA plain-language reference on E-E-A-T: experience, expertise, authoritativeness, and trustworthiness, the qualities search and AI systems use to judge whether content deserves to rank and be cited.",
+    "docker-basics-reference\tA plain-language reference on Docker: what images and containers are, how the Dockerfile builds layered images, the handful of commands you use daily, how volumes and ports connect a container to the outside world, and how containers differ from v...",
+    "domain-and-dns-basics-reference\tA plain-language DNS reference in five chapters for an indie operator: A, AAAA, CNAME, MX, TXT and NS records, registrar versus nameservers, propagation delay, pointing a domain at a host, and the mail and security records.",
+    "dns-email-authentication-reference\tA plain-language reference on SPF, DKIM, and DMARC: the three DNS records that prove your email is really from you, stop others from spoofing your domain, and keep your messages out of spam.",
+    "diversification-basics-reference\tA plain-language reference on diversification: spreading money across many investments so that no single one can sink the whole portfolio.",
+    "dependency-supply-chain-reference\tA plain-language reference on dependency and supply-chain risk: the danger that comes from the third-party code your project pulls in, why it matters, and the practices that reduce it, lockfiles, auditing, minimizing dependencies, and watching for typosquatting and compromised packages.",
+    "dca-vs-lump-sum-reference\tA plain-language reference on dollar-cost averaging versus investing a lump sum: what each one is, what the evidence actually says about returns, why the lower-regret choice is often not the higher-return one, and how to decide based on your own situation rather than a headline.",
+    "database-indexing-basics-reference\tA plain-language reference on database indexes: what they are, how they make reads fast, what they cost on writes and storage, and how to decide which columns to index. It covers B-tree indexes, single versus composite indexes, covering indexes, w...",
+    "data-privacy-laws-basics-reference\tA plain-language overview of the main data privacy laws: the EU's GDPR and California's CCPA as amended by the CPRA, what counts as personal data, the role of consent, the rights people have over their data, who has to comply, and what penalties apply.",
+    "csrf-and-xss-reference\tA plain-language reference on the two most common web application attacks: cross-site request forgery (CSRF) and cross-site scripting (XSS). It covers what each attack actually is, how it works step by step, the real defenses that stop it, and how...",
+    "cors-basics-reference\tA plain-language reference for CORS (Cross-Origin Resource Sharing), the browser mechanism that controls when JavaScript on one origin may read responses from another origin. It covers what an origin is, how requests are categorized, the exact HTT...",
+    "core-web-vitals-reference\tPlain-language reference on Largest Contentful Paint, Interaction to Next Paint and Cumulative Layout Shift, with a chapter each on what moves them plus field versus lab data and where to start.",
+    "conventional-commits-reference\tConventional Commits is a lightweight convention for writing commit messages in a structured, machine-readable way. It defines a small set of rules for the first line of a commit so that both people and tooling can understand what changed. This re...",
+    "contractor-and-1099-tax-basics-reference\tIn the United States, an independent contractor is paid without tax withheld, reports that income themselves, and owes both income tax and self-employment tax on the profit.",
+    "context-windows-and-tokens-reference\tA language model reads and writes in tokens, which are chunks of text roughly the size of a short word or word-piece, not in characters or whole words.",
+    "content-voice-templates\tVoice guides and writing rules for four distinct content personas. Drop-in references for solo founders, indie creators, technical writers, and anonymous experts who need to write consistently across blog, social, email, and product copy.",
+    "content-security-policy-builder\tBuilds a Content-Security-Policy header by toggling directives and choosing their allowed sources. It assembles the header string live, flags the sources that weaken the policy, and lets you copy the result.",
+    "content-repurposing-reference\tFive chapters on turning one pillar piece into clips, threads, posts and an email, covering the hub-and-spoke structure, per-platform adaptation, a repeatable workflow, and what not to repurpose.",
+    "ci-cd-basics-reference\tA plain-language reference on continuous integration and continuous delivery/deployment: the practice of automatically building, testing, and shipping code so that changes reach production safely and often. It covers what CI, CD (delivery), and CD...",
+    "character-encoding-utf8-basics-reference\tA plain-language reference on character encoding: how text, which humans read as characters, is stored and transmitted as bytes, which machines actually handle. It covers the difference between bytes and characters, ASCII, Unicode code points, the...",
+    "cash-flow-vs-profit-reference\tA plain-language reference on the gap between profit and cash, in five chapters: why profitable businesses run out, receivable and payable timing, a monthly cash view, and sizing a cash buffer.",
+    "caching-basics-reference\tA plain-language technical reference for caching fundamentals.",
+    "canonical-and-hreflang-reference\tA plain-language reference on two tags that prevent search problems: the canonical tag, which tells search engines the preferred version of a page when duplicates or near-duplicates exist, and the hreflang tag, which tells them which language and region version of a page to show which users.",
+    "byok-setup-guide\tA plain-language guide to bring-your-own-key for people who do not write code. It explains what an API key is, where to get one, how to store it without leaking it, and how to keep costs from surprising you.",
+    "byok-research-grid-patterns\tArchitecture patterns for building a bring-your-own-key research grid: a setup that queries several data and model providers through their official APIs, using keys you supply, and merges the results into one view.",
+    "byok-api-key-setup-reference\tA plain-language reference on bring-your-own-key setup: what an API key is, how to get one from the major AI providers, how to keep it safe, and how to set spending limits so a key cannot run up a surprise bill.",
+    "brand-mention-tracker\tTemplates and procedures for tracking brand mentions across the web. The \"3x signal\" from the GEO baseline: brand mentions correlate roughly 3x stronger with AI engine citation than backlinks.",
+    "background-jobs-and-queues-basics-reference\tA plain-language technical reference for background jobs and queues. It covers why work moves out of the request path, how queues differ from cron, why idempotency matters, how retries and backoff behave, and what delivery guarantees and dead-letter queues actually give you.",
+    "backup-and-recovery-reference\tFive chapters on backups that actually restore, covering why untested backups fail, the 3-2-1 rule, RTO and RPO targets, testing restores, and what to back up, on what schedule, and for how long.",
+    "aria-roles-reference\tA plain-language reference on ARIA, the set of roles, states, and properties that make web interfaces understandable to assistive technology like screen readers. It covers what ARIA is, the first rule of ARIA (use native HTML first), the differenc...",
+    "api-versioning-basics-reference\tA plain-language reference on versioning APIs: why versioning exists, how to expose versions, how to decide what counts as a breaking change, and how to retire old versions without stranding the people who depend on you.",
+    "audience-before-monetization-reference\tFive short chapters on building an audience before selling to it, covering attention versus a real audience, giving before asking, owned versus rented platforms, and the signals that it is time to monetize.",
+    "api-provider-cost-control-reference\tA plain-language reference on understanding and controlling what you spend on AI provider APIs. It covers how providers charge, when bring-your-own-key beats a bundled tool, how to set caps and alerts, how to attribute cost so you know what drives it, and how to reduce spend without guessing.",
+    "ai-crawler-access-and-llms-txt-reference\tA plain-language reference on letting AI crawlers into your site: the robots.txt rules that control GPTBot, ClaudeBot, PerplexityBot, and Google-Extended, the emerging llms.txt standard, and why allowing AI crawlers tends to help you get cited.",
+    "answer-engine-citability-guide\tA reference on writing web pages that AI answer engines can quote and cite. Search increasingly happens inside AI systems that read pages, extract a direct answer, and cite a few sources.",
+    "analytics-without-creepiness-reference\tA five-chapter reference on measuring site usage without tracking people, covering what analytics should actually answer, privacy-respecting approaches, consent and the law, and the few metrics worth acting on.",
+    "ai-content-disclosure-reference\tA plain-language reference on disclosing AI-generated content: when disclosure is required or expected, how rules like the FTC guidance, California AB 2013, and the EU AI Act treat it, and how to disclose honestly without overcomplicating it.",
+    "ai-coding-prompt-discipline\tPrompts and rules that make AI coding assistants push back, refuse over-engineering, and stay in scope.",
+    "acid-and-transactions-reference\tA plain-language reference on database transactions and the ACID properties. It covers what a transaction is, what each of the four ACID letters guarantees, the isolation levels a database offers, the read anomalies each level prevents, and when r...",
+    "ai-agent-guardrails-reference\tA plain-language reference on putting guardrails around AI agents: limiting what an agent can access, capping what it can spend, scoping what it can do, and keeping a human in the loop for irreversible actions.",
+    "affiliate-disclosure-reference\tA plain-language reference on affiliate disclosure: what an affiliate relationship is, why you must disclose it, what the FTC endorsement guides require, where and how to place a disclosure, and the mistakes that turn a disclosure into a violation.",
+    "accessibility-basics-reference\tFive plain-language chapters on web accessibility for people building without a specialist on hand: contrast and real text, keyboard and focus, alt text, headings and labelled forms, and how to test.",
+    "financial-services\tClaude Financial Services"
+  ];
+
+  var REFERENCE_TSV = REFERENCE_ROWS.join('\n');
+  var REFERENCE_ROW_COUNT = REFERENCE_ROWS.length;
+  var REFERENCE_SNAPSHOT_DATE = '2026-09-02';
+
+  function summaryLine(res, dcRes) {
+    var parts = [];
+    parts.push(res.count + ' name' + (res.count === 1 ? '' : 's'));
+    var conc = 0;
+    for (var i = 0; i < res.hist.length; i++) { if (res.hist[i].count >= 3) { conc++; } }
+    parts.push(conc + ' concentrated prefix' + (conc === 1 ? '' : 'es'));
+    parts.push(res.runs.length + ' run' + (res.runs.length === 1 ? '' : 's') + ' of 3 or more');
+    parts.push(res.pairs.length + ' adjacent collision' + (res.pairs.length === 1 ? '' : 's') + ' at ' + res.threshold + ' characters or more');
+    if (dcRes && dcRes.withDesc > 0) {
+      var echoes = dcRes.exactEcho.length;
+      parts.push(echoes + ' slug echo' + (echoes === 1 ? '' : 'es'));
+    }
+    return parts.join(', ') + '.';
+  }
+
+  var CORE = {
+    lcp: lcp, countCodePoints: countCodePoints, firstToken: firstToken, cmpCodepoint: cmpCodepoint, makeComparator: makeComparator,
+    collatorAvailable: collatorAvailable, tokens: tokens, sameMultiset: sameMultiset,
+    titleCasedSlug: titleCasedSlug, jaccard: jaccard, parseCsv: parseCsv, parseInput: parseInput,
+    histogram: histogram, findRuns: findRuns, adjacentPairs: adjacentPairs, analyse: analyse,
+    descriptionChecks: descriptionChecks, summaryLine: summaryLine, COPULA_RE: COPULA_RE,
+    EXAMPLE_TSV: EXAMPLE_TSV, SOFT_ROW_WARN: SOFT_ROW_WARN, LISTING_RENDER_CAP: LISTING_RENDER_CAP,
+    REFERENCE_TSV: REFERENCE_TSV, REFERENCE_ROW_COUNT: REFERENCE_ROW_COUNT,
+    REFERENCE_SNAPSHOT_DATE: REFERENCE_SNAPSHOT_DATE
+  };
+
+  /* SELFTEST-START */
+  function runSelfTest() {
+    var results = [];
+    function check(label, actual, expected) {
+      var ok = (actual === expected);
+      results.push({ label: label, ok: ok, actual: String(actual), expected: String(expected), control: false });
+      return ok;
+    }
+    function checkClose(label, actual, expected, tol) {
+      var ok = Math.abs(actual - expected) <= tol;
+      results.push({ label: label, ok: ok, actual: actual.toFixed(4), expected: expected.toFixed(4) + ' plus or minus ' + tol, control: false });
+      return ok;
+    }
+
+    check('lcp of embedding-cost-estimator and embedding-similarity-calibrator is 10',
+      lcp('embedding-cost-estimator', 'embedding-similarity-calibrator'), 10);
+    check('lcp of an empty string and abc is 0', lcp('', 'abc'), 0);
+    check('lcp of two identical strings is the full length', lcp('abc', 'abc'), 3);
+    check('lcp stops at the end of the shorter name', lcp('alpha', 'alpha-sync-daemon'), 5);
+    check('first token of agentic-workflow-patterns is agentic', firstToken('agentic-workflow-patterns'), 'agentic');
+    check('first token of a name with no hyphen is the whole name', firstToken('placeholder'), 'placeholder');
+    check('first token is lowercased', firstToken('Alpha-Report'), 'alpha');
+
+    check('codepoint order puts agent-trace-viewer before agentic-workflow-patterns',
+      cmpCodepoint('agent-trace-viewer', 'agentic-workflow-patterns') < 0, true);
+    if (collatorAvailable()) {
+      var pi = makeComparator('punct');
+      check('punctuation insensitive order puts agentic-workflow-patterns before agent-trace-viewer',
+        pi('agentic-workflow-patterns', 'agent-trace-viewer') < 0, true);
+      check('punctuation insensitive comparator is total, equal keys fall back to codepoint',
+        pi('a-b', 'ab') !== 0, true);
+    } else {
+      results.push({ label: 'punctuation insensitive collator unavailable in this browser, alternative order falls back to codepoint', ok: true, actual: 'fallback', expected: 'fallback', control: false });
+    }
+
+    check('title cased slug of sample-data-loader is Sample Data Loader',
+      titleCasedSlug('sample-data-loader'), 'Sample Data Loader');
+    check('exact token multiset echo detects a description that repeats its name',
+      sameMultiset(tokens('sample-data-loader'), tokens('Sample Data Loader')), true);
+    check('exact token multiset echo rejects a real description',
+      sameMultiset(tokens('sample-data-writer'), tokens('Write generated rows back to a local file.')), false);
+    checkClose('token set Jaccard of report-service against Alpha Report Service is two thirds',
+      jaccard(tokens('report-service'), tokens('Alpha Report Service')), 2 / 3, 0.0005);
+
+    check('copula opener rule matches a description that opens with a name and is',
+      COPULA_RE.test('Config Loader is a small utility for reading settings files.'), true);
+    check('copula opener rule does not match a description that opens with a verb',
+      COPULA_RE.test('Encrypt and decrypt text in your browser with a passphrase.'), false);
+
+    var bare = parseInput('one-alpha\ntwo-beta\n\nthree-gamma\n');
+    check('bare list parses to 3 rows', bare.rows.length, 3);
+    check('bare list leaves every description empty', bare.rows[0].desc + bare.rows[1].desc + bare.rows[2].desc, '');
+    check('bare list shape is reported as lines', bare.shape, 'lines');
+
+    var tsv = parseInput('a-one\tFirst row.\nb-two\tSecond row.');
+    check('tab separated input keeps the description', tsv.rows[1].desc, 'Second row.');
+
+    var csv = parseInput('a-one,"Comma, inside a quoted field"\nb-two,Plain');
+    check('comma separated input respects a quoted comma', csv.rows[0].desc, 'Comma, inside a quoted field');
+    check('comma separated input reads the second row', csv.rows[1].name, 'b-two');
+
+    var dup = parseInput('same-name\nsame-name\nother-name');
+    check('duplicate names are removed', dup.rows.length, 2);
+    check('duplicate names are counted', dup.dupes, 1);
+
+    var skipped = parseInput('\t no name here\ngood-name\tFine.');
+    check('a row with an empty name is skipped and counted', skipped.skippedNoName, 1);
+
+    var poll = parseInput('[{"name":"poll-test","__proto__":{"polluted":"yes"}}]');
+    check('a JSON row carrying __proto__ still parses its name', poll.rows[0].name, 'poll-test');
+    check('__proto__ in user JSON does not reach Object.prototype', ({}).polluted, undefined);
+    check('the ignored reserved key is counted and reported', poll.badKeyRows, 1);
+
+    var jsonRows = parseInput('[{"slug":"j-one","desc":"From a slug key."},{"repo":"j-two"}]');
+    check('JSON accepts slug and repo as name keys', jsonRows.rows[0].name + ' ' + jsonRows.rows[1].name, 'j-one j-two');
+
+    var ex = parseInput(EXAMPLE_TSV);
+    check('example list parses to 40 rows', ex.rows.length, 40);
+    var exRes = analyse(ex.rows, 'codepoint', 8);
+    check('example list, alpha is the largest first token at 6', exRes.hist[0].token + ' ' + exRes.hist[0].count, 'alpha 6');
+    check('example list, 7 tokens appear 3 or more times',
+      exRes.hist.filter(function (h) { return h.count >= 3; }).length, 7);
+    check('example list, codepoint order gives 7 runs of 3 or more', exRes.runs.length, 7);
+    check('example list, the alpha run is one block of 6 under codepoint order',
+      exRes.runs[0].token + ' ' + exRes.runs[0].length, 'alpha 6');
+    check('example list, the entry after the alpha run is alphanumeric-slug-guide',
+      exRes.runs[0].next, 'alphanumeric-slug-guide');
+    check('example list, 10 adjacent pairs share 8 characters or more', exRes.pairs.length, 10);
+    check('example list, the worst adjacent pair shares 17 characters', exRes.pairs[0].shared, 17);
+    check('example list, the worst adjacent pair is the widget inventory pair',
+      exRes.pairs[0].a + ' with ' + exRes.pairs[0].b,
+      'widget-inventory-audit with widget-inventory-report');
+    if (collatorAvailable()) {
+      var exPi = analyse(ex.rows, 'punct', 8);
+      check('example list, the punctuation insensitive order splits the alpha block into 3 then 3',
+        exPi.runs[0].length + ' then ' + exPi.runs[1].length, '3 then 3');
+      check('example list, the name that splits the alpha block is alphanumeric-slug-guide',
+        exPi.sortedNames[exPi.runs[0].nextIndex], 'alphanumeric-slug-guide');
+    }
+    var exDc = descriptionChecks(ex.rows);
+    check('example list, 1 exact slug echo', exDc.exactEcho.length, 1);
+    check('example list, the echo is sample-data-loader', exDc.exactEcho[0].name, 'sample-data-loader');
+    check('example list, 1 title cased slug match', exDc.titleEcho.length, 1);
+    check('example list, 1 empty description', exDc.empty, 1);
+    check('example list, 1 row in the NEAR tier', exDc.near.length, 1);
+    check('example list, 1 WARN tier hit', exDc.warn.length, 1);
+
+    var one = analyse(parseInput('only-one-name').rows, 'codepoint', 8);
+    check('a single name yields no runs', one.runs.length, 0);
+    check('a single name yields no adjacent pairs', one.pairs.length, 0);
+    check('an empty input yields no rows', parseInput('   \n  \n').rows.length, 0);
+
+    function refusalName(fn) {
+      try { fn(); } catch (err) { return err && err.isRefusal ? err.refusalName : 'an error that was not a named refusal'; }
+      return 'no refusal was raised';
+    }
+
+    /* Surrogate pairs. A shared prefix must never be reported or sliced half way through a character. */
+    var EMOJI = '\uD83D\uDE00';
+    var EMOJI2 = '\uD83D\uDE01';
+    check('a shared prefix never stops inside a surrogate pair',
+      lcp('ab' + EMOJI, 'ab' + EMOJI2), 2);
+    check('a fully matching surrogate pair counts as its two code units',
+      lcp('ab' + EMOJI + 'x', 'ab' + EMOJI + 'y'), 4);
+    check('code point count treats a surrogate pair as one character',
+      countCodePoints('ab' + EMOJI), 3);
+    var astral = analyse(parseInput('abcdefg' + EMOJI + '-one\nabcdefg' + EMOJI + '-two').rows, 'codepoint', 8);
+    check('an astral character counts once in the reported shared characters', astral.pairs[0].chars, 9);
+    check('the slice length for that pair is still the code unit length', astral.pairs[0].shared, 10);
+
+    /* Both endpoints of a pair must be marked. Keying only the later one made Panel C print the
+       earlier member of every collision as having no adjacent collision at all. */
+    var bothEnds = analyse(parseInput('shared-prefix-one\nshared-prefix-two').rows, 'codepoint', 8);
+    check('the later member of an adjacent pair is indexed', !!bothEnds.pairAt['i.1'], true);
+    check('the earlier member of an adjacent pair is indexed too', !!bothEnds.pairBelowAt['i.0'], true);
+
+    /* Delimiter sniffing is per line, not one indexOf over the whole document. */
+    var tsvCommas = parseInput('a-one\tOne, two and three.\nb-two\tFour, five.');
+    check('a tab separated list whose descriptions contain commas is still read as tab separated', tsvCommas.shape, 'tsv');
+    check('that list keeps its full description', tsvCommas.rows[0].desc, 'One, two and three.');
+    var csvOnly = parseInput('a-one,First.\nb-two,Second.');
+    check('a comma separated list with no tabs is read as comma separated', csvOnly.shape, 'csv');
+    check('one stray tab no longer forces the whole document to be split on tabs',
+      refusalName(function () { return parseInput('a-one,First.\nb-two,Second.\nc-three\tstray tab'); }),
+      'Refused, the delimiter is ambiguous');
+
+    /* Malformed comma separated input fails closed with a named refusal, never a guessed result. */
+    check('a closing quote followed by text is refused by name',
+      refusalName(function () { return parseInput('a-one,"desc"x'); }),
+      'Refused, malformed quoted field');
+    check('a bare quote inside an unquoted field is refused by name',
+      refusalName(function () { return parseInput('a-one,de"sc'); }),
+      'Refused, unescaped double quote');
+    check('an unterminated quoted field is refused by name',
+      refusalName(function () { return parseInput('a-one,"never closed'); }),
+      'Refused, unterminated quoted field');
+    check('a doubled quote inside a quoted field is still accepted',
+      parseInput('a-one,"a ""quoted"" word"').rows[0].desc, 'a "quoted" word');
+
+    /* Duplicates are decided on the full name, not on a shortened copy of it. */
+    var longA = 'x-' + new Array(600).join('a');
+    var longB = longA.slice(0, 520) + 'DIFFERENT';
+    var longRows = parseInput(longA + '\n' + longB);
+    check('two long names that share a 512 character prefix are two names, not a duplicate', longRows.rows.length, 2);
+    check('no duplicate is reported for them', longRows.dupes, 0);
+    check('both are counted as shortened for display', longRows.truncated, 2);
+    check('a genuine duplicate of a long name is still removed', parseInput(longA + '\n' + longA).rows.length, 1);
+
+    /* Token extraction is bounded without building an intermediate array over the whole string. */
+    var longDesc = new Array(6000).join('word ');
+    check('token extraction stops at its own cap', tokens(longDesc).length, 4096);
+    check('token extraction still returns real tokens', tokens('One-two, three!')[2], 'three');
+
+    /* The WARN tier must be able to report nothing found, so its badge cannot be hard coded. */
+    var noCopula = descriptionChecks(parseInput('a-one\tEncrypt and decrypt text in your browser.').rows);
+    check('the WARN tier returns zero on a description that does not open with a copula', noCopula.warn.length, 0);
+
+    /* THE 373 ROW REFERENCE CORPUS. These are the figures the README publishes, asserted here
+       against the corpus the "Load the 373 row example" button loads, so the two can never drift
+       apart. Every expected value below was computed by running these same functions over the
+       corpus shipped in this file. */
+    var refP = parseInput(REFERENCE_TSV);
+    check('the reference corpus parses to 373 rows', refP.rows.length, 373);
+    check('the reference corpus row count matches the shipped constant', refP.rows.length, REFERENCE_ROW_COUNT);
+    check('the reference corpus is read as tab separated', refP.shape, 'tsv');
+    check('the reference corpus holds no duplicate name', refP.dupes, 0);
+    check('the reference corpus holds no row without a name', refP.skippedNoName, 0);
+    check('the reference text is 73559 characters', REFERENCE_TSV.length, 73559);
+    check('the snapshot date constant is pinned and has not drifted', REFERENCE_SNAPSHOT_DATE, '2026-09-02');
+    check('the first row of the reference corpus is the snapshot first row',
+      refP.rows[0].name + ' | ' + refP.rows[0].desc,
+      '0xelitesystem.github.io | Searchable index of all 225 repos: 102 browser tools with live demos, 123 references. One page.');
+    check('the last row of the reference corpus is the snapshot last row', refP.rows[372].name, 'financial-services');
+
+    var refNamesWithProduct = 0, refDescsWithProduct = 0, refOccurrences = 0;
+    for (var pn = 0; pn < refP.rows.length; pn++) {
+      var lowName = refP.rows[pn].name.toLowerCase(), lowDesc = refP.rows[pn].desc.toLowerCase();
+      var lv = 'claude', lw = 'anthropic';
+      if (lowName.indexOf(lv) !== -1 || lowName.indexOf(lw) !== -1) { refNamesWithProduct++; }
+      if (lowDesc.indexOf(lv) !== -1 || lowDesc.indexOf(lw) !== -1) { refDescsWithProduct++; }
+      refOccurrences += (lowName + ' ' + lowDesc).split(lv).length - 1;
+      refOccurrences += (lowName + ' ' + lowDesc).split(lw).length - 1;
+    }
+    check('reference corpus, 7 repository names carry a third party product name', refNamesWithProduct, 7);
+    check('reference corpus, 24 descriptions carry one', refDescsWithProduct, 24);
+    check('reference corpus, 34 occurrences in all', refOccurrences, 34);
+
+    var refCp = analyse(refP.rows, 'codepoint', 8);
+    check('reference corpus, 28 first hyphen tokens appear 3 or more times',
+      refCp.hist.filter(function (h) { return h.count >= 3; }).length, 28);
+    check('reference corpus, the eight most frequent counts are 10 9 9 9 8 8 7 6',
+      refCp.hist.slice(0, 8).map(function (h) { return h.count; }).join(' '), '10 9 9 9 8 8 7 6');
+    check('reference corpus, the leading token is ai at 10',
+      refCp.hist[0].token + ' ' + refCp.hist[0].count, 'ai 10');
+    check('reference corpus, the three tokens at 9 are agent, json and llm',
+      refCp.hist.slice(1, 4).map(function (h) { return h.token; }).join(' '), 'agent json llm');
+    check('reference corpus, the two tokens at 8 are mcp and prompt',
+      refCp.hist.slice(4, 6).map(function (h) { return h.token; }).join(' '), 'mcp prompt');
+    check('reference corpus, the token in seventh place is the third party product name',
+      refCp.hist[6].token, 'claude');
+    check('reference corpus, that seventh token stands at 7', refCp.hist[6].count, 7);
+    check('reference corpus, api is eighth at 6',
+      refCp.hist[7].token + ' ' + refCp.hist[7].count, 'api 6');
+    check('reference corpus, 28 maximal runs of 3 or more under codepoint order', refCp.runs.length, 28);
+    check('reference corpus, 50 adjacent pairs at 8 characters or more under codepoint order', refCp.pairs.length, 50);
+    check('reference corpus, the worst adjacent pair shares 21 characters',
+      refCp.pairs[0].a + ' with ' + refCp.pairs[0].b + ' at ' + refCp.pairs[0].shared,
+      'affiliate-disclosure-reference with affiliate-disclosure-templates at 21');
+    check('reference corpus, the next two adjacent pairs share 17 characters each',
+      refCp.pairs[1].shared + ' ' + refCp.pairs[2].shared, '17 17');
+
+    var refAgent = null, refLlm = null, refEmb = [];
+    for (var ri2 = 0; ri2 < refCp.runs.length; ri2++) {
+      if (refCp.runs[ri2].token === 'agent') { refAgent = refCp.runs[ri2]; }
+      if (refCp.runs[ri2].token === 'llm') { refLlm = refCp.runs[ri2]; }
+    }
+    for (var pi2 = 0; pi2 < refCp.pairs.length; pi2++) {
+      if (refCp.pairs[pi2].a.indexOf('embedding') === 0) { refEmb.push(refCp.pairs[pi2].shared); }
+    }
+    check('reference corpus, the agent block is ONE maximal run of 9', refAgent && refAgent.length, 9);
+    check('reference corpus, the agent run goes from agent-blast-radius to agent-trace-viewer',
+      refAgent.first + ' to ' + refAgent.last, 'agent-blast-radius to agent-trace-viewer');
+    check('reference corpus, agentic-workflow-patterns lands after the whole agent block, at sorted index 16',
+      refAgent.next + ' ' + refAgent.nextIndex, 'agentic-workflow-patterns 16');
+    check('reference corpus, agent-trace-viewer sits at sorted index 15', refCp.sortedNames[15], 'agent-trace-viewer');
+    check('reference corpus, the llm block is ONE maximal run of 9', refLlm && refLlm.length, 9);
+    check('reference corpus, the llm run ends at llm-vram-calculator',
+      refLlm.first + ' to ' + refLlm.last, 'llm-eval-datasets-starter to llm-vram-calculator');
+    check('reference corpus, the two embedding pairs are 10 then 9 under codepoint order, not 9 and 9',
+      refEmb.join(' then '), '10 then 9');
+
+    if (collatorAvailable()) {
+      var refPi = analyse(refP.rows, 'punct', 8);
+      var piAgent = [], piLlm = [], piEmb = [];
+      for (var ri3 = 0; ri3 < refPi.runs.length; ri3++) {
+        if (refPi.runs[ri3].token === 'agent') { piAgent.push(refPi.runs[ri3].length); }
+        if (refPi.runs[ri3].token === 'llm') { piLlm.push(refPi.runs[ri3].length); }
+      }
+      for (var pi3 = 0; pi3 < refPi.pairs.length; pi3++) {
+        if (refPi.pairs[pi3].a.indexOf('embedding') === 0) { piEmb.push(refPi.pairs[pi3].shared); }
+      }
+      check('reference corpus, the punctuation insensitive order gives 29 runs of 3 or more, not 28', refPi.runs.length, 29);
+      check('reference corpus, the punctuation insensitive order still gives 50 adjacent pairs', refPi.pairs.length, 50);
+      check('reference corpus, the punctuation insensitive order splits the agent block into 4 then 5',
+        piAgent.join(' then '), '4 then 5');
+      check('reference corpus, the punctuation insensitive llm run is 7', piLlm.join(' then '), '7');
+      check('reference corpus, the punctuation insensitive embedding pairs are 9 and 9', piEmb.join(' and '), '9 and 9');
+      var cpKeys = {}, sameCount = 0;
+      for (var ck = 0; ck < refCp.pairs.length; ck++) { cpKeys[refCp.pairs[ck].a + '|' + refCp.pairs[ck].b] = true; }
+      for (var ck2 = 0; ck2 < refPi.pairs.length; ck2++) {
+        if (cpKeys[refPi.pairs[ck2].a + '|' + refPi.pairs[ck2].b]) { sameCount++; }
+      }
+      check('reference corpus, the two orders agree on 46 of those 50 pairs, so four enter and four leave', sameCount, 46);
+    }
+
+    var refDc = descriptionChecks(refP.rows);
+    check('reference corpus, every one of the 373 rows carries a description', refDc.withDesc, 373);
+    check('reference corpus, 0 slug echoes by exact token multiset equality', refDc.exactEcho.length, 0);
+    check('reference corpus, 0 title cased slug string matches', refDc.titleEcho.length, 0);
+    check('reference corpus, 0 empty descriptions', refDc.empty, 0);
+    check('reference corpus, exactly 1 row sits at or above token set Jaccard 0.45', refDc.near.length, 1);
+    check('reference corpus, that one row is financial-services', refDc.near[0].name, 'financial-services');
+    checkClose('reference corpus, that row scores two thirds and is a product name, not a defect',
+      refDc.near[0].jaccard, 2 / 3, 0.0005);
+    var refBelow = 0;
+    for (var jr = 0; jr < refP.rows.length; jr++) {
+      var jv = jaccard(tokens(refP.rows[jr].name), tokens(refP.rows[jr].desc));
+      if (jv < 0.45 && jv > refBelow) { refBelow = jv; }
+    }
+    checkClose('reference corpus, the next highest Jaccard in the whole corpus is 0.267', refBelow, 0.267, 0.0005);
+    check('reference corpus, the WARN tier scores exactly 1 hit', refDc.warn.length, 1);
+    check('reference corpus, that single WARN hit is the known false positive',
+      refDc.warn[0].name, 'conventional-commits-reference');
+
+    /* POSITIVE CONTROL 1: a deliberately wrong assertion. The true value is 2. */
+    var controlActual = lcp('abc', 'abd');
+    var controlOk = (controlActual === 3);
+    results.push({
+      label: 'POSITIVE CONTROL, deliberately wrong assertion, lcp of abc and abd claimed to be 3 when it is 2',
+      ok: !controlOk, actual: String(controlActual), expected: '3, which is wrong on purpose',
+      control: true,
+      controlNote: controlOk
+        ? 'The harness accepted a false claim. The self test itself is broken.'
+        : 'Correctly rejected. The checker is live and can produce a failure.'
+    });
+
+    /* POSITIVE CONTROL 2: malformed input must raise a named refusal, never a partial result. */
+    var raised = null;
+    try { parseInput('[{"name":"broken"'); }
+    catch (err) { raised = err && err.isRefusal ? err.refusalName : 'an error that was not a named refusal'; }
+    results.push({
+      label: 'POSITIVE CONTROL, malformed JSON must raise a named refusal',
+      ok: raised === 'Refused, JSON did not parse',
+      actual: raised === null ? 'no refusal was raised, the parser returned a result' : raised,
+      expected: 'Refused, JSON did not parse',
+      control: true,
+      controlNote: raised === 'Refused, JSON did not parse'
+        ? 'Correctly refused. Malformed input fails closed.'
+        : 'The parser did not fail closed on malformed input.'
+    });
+
+    var passed = 0, failed = 0;
+    for (var i = 0; i < results.length; i++) { if (results[i].ok) { passed++; } else { failed++; } }
+    return { results: results, passed: passed, failed: failed, total: results.length };
+  }
+  /* SELFTEST-END */
+  /* CORE-END */
+
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    if (typeof globalThis !== 'undefined') { globalThis.__RLA__ = { core: CORE, runSelfTest: runSelfTest }; }
+    return;
+  }
+
+  /* ---------- DOM helpers. User content is only ever set with textContent, never as markup. ---------- */
+
+  function el(tag, className, text) {
+    var n = document.createElement(tag);
+    if (className) { n.className = className; }
+    if (text !== undefined && text !== null) { n.textContent = String(text); }
+    return n;
+  }
+  function clear(node) { while (node.firstChild) { node.removeChild(node.firstChild); } }
+  function tagSpan(word, kind) { return el('span', 'tag ' + kind, word); }
+
+  function table(caption, headers) {
+    var wrap = el('div', 'wrap');
+    var t = el('table');
+    t.appendChild(el('caption', null, caption));
+    var thead = el('thead');
+    var tr = el('tr');
+    for (var i = 0; i < headers.length; i++) {
+      var th = el('th', headers[i].num ? 'num' : null, headers[i].label);
+      th.setAttribute('scope', 'col');
+      tr.appendChild(th);
+    }
+    thead.appendChild(tr);
+    t.appendChild(thead);
+    var tbody = el('tbody');
+    t.appendChild(tbody);
+    wrap.appendChild(t);
+    return { wrap: wrap, tbody: tbody };
+  }
+  function row(tbody, cells) {
+    var tr = el('tr');
+    for (var i = 0; i < cells.length; i++) {
+      var c = cells[i];
+      var td = el('td', c.num ? 'num' : null);
+      if (c.node) { td.appendChild(c.node); } else { td.textContent = String(c.text); }
+      if (c.mono) { td.className = (td.className ? td.className + ' ' : '') + 'mono'; }
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+
+  var srcEl = document.getElementById('src');
+  var thrEl = document.getElementById('thr');
+  var msgEl = document.getElementById('messages');
+  var liveEl = document.getElementById('live');
+  var paEl = document.getElementById('panel-a');
+  var pbEl = document.getElementById('panel-b');
+  var pcEl = document.getElementById('panel-c');
+  var pdEl = document.getElementById('panel-d');
+  var stEl = document.getElementById('selftest-out');
+  var radios = document.querySelectorAll('input[name=collation]');
+
+  var RESTING = {
+    a: 'Will count the first hyphen token of every name and list every token appearing 3 or more times, most frequent first.',
+    b: 'Will sort a copy of the list, find every maximal contiguous run of 3 or more entries sharing a first hyphen token, and every adjacent pair sharing 8 or more leading characters.',
+    c: 'Will render the sorted names as a plain listing so the collision blocks are visible rather than merely counted.',
+    d: 'Will check whether a description merely repeats its own name, and will report a separate WARN tier for one string match rule.'
+  };
+
+  function rest() {
+    clear(msgEl);
+    liveEl.textContent = '';
+    clear(paEl); paEl.appendChild(el('p', 'soft', RESTING.a));
+    clear(pbEl); pbEl.appendChild(el('p', 'soft', RESTING.b));
+    clear(pcEl); pcEl.appendChild(el('p', 'soft', RESTING.c));
+    clear(pdEl); pdEl.appendChild(el('p', 'soft', RESTING.d));
+  }
+
+  function showRefusal(name, detail) {
+    var box = el('div', 'refusal');
+    box.setAttribute('role', 'alert');
+    var p = el('p');
+    p.appendChild(el('strong', null, name + '.'));
+    p.appendChild(document.createTextNode(' ' + detail));
+    box.appendChild(p);
+    box.appendChild(el('p', 'soft', 'Nothing was computed from this input. No partial or guessed result is shown.'));
+    msgEl.appendChild(box);
+  }
+
+  function showNotice(text) {
+    var box = el('div', 'notice');
+    var p = el('p');
+    p.appendChild(el('strong', null, 'Note.'));
+    p.appendChild(document.createTextNode(' ' + text));
+    box.appendChild(p);
+    msgEl.appendChild(box);
+  }
+
+  function currentMode() {
+    for (var i = 0; i < radios.length; i++) { if (radios[i].checked) { return radios[i].value; } }
+    return 'codepoint';
+  }
+
+  function currentThreshold() {
+    var v = parseInt(thrEl.value, 10);
+    if (!isFinite(v) || v < 1) { return null; }
+    if (v > 200) { return null; }
+    return v;
+  }
+
+  function modeLabel(mode) {
+    return mode === 'punct' ? 'punctuation insensitive collation' : 'codepoint order (ASCII)';
+  }
+
+  /* ---------- Panel renderers ---------- */
+
+  function renderPanelA(res) {
+    clear(paEl);
+    var top = [], rest2 = [];
+    for (var i = 0; i < res.hist.length; i++) {
+      (res.hist[i].count >= 3 ? top : rest2).push(res.hist[i]);
+    }
+    var head = el('p');
+    if (top.length === 0) {
+      head.appendChild(tagSpan('CLEAN', 'ok'));
+      head.appendChild(document.createTextNode('No first hyphen token appears 3 or more times across these ' + res.count + ' names.'));
+    } else {
+      head.appendChild(tagSpan('CONCENTRATED', 'warn'));
+      head.appendChild(document.createTextNode(top.length + ' first hyphen token' + (top.length === 1 ? '' : 's') + ' appear' + (top.length === 1 ? 's' : '') + ' 3 or more times, led by ' + top[0].token + ' at ' + top[0].count + '.'));
+    }
+    paEl.appendChild(head);
+
+    if (top.length > 0) {
+      var t = table('First hyphen tokens appearing 3 or more times, ' + res.count + ' names in total', [
+        { label: 'Token' }, { label: 'Count', num: true }, { label: 'Share of the list', num: true }
+      ]);
+      for (var j = 0; j < top.length && j < TABLE_RENDER_CAP; j++) {
+        row(t.tbody, [
+          { text: top[j].token, mono: true },
+          { text: top[j].count, num: true },
+          { text: ((top[j].count / res.count) * 100).toFixed(1) + '%', num: true }
+        ]);
+      }
+      paEl.appendChild(t.wrap);
+      if (top.length > TABLE_RENDER_CAP) {
+        paEl.appendChild(el('p', 'soft', 'Showing the first ' + TABLE_RENDER_CAP + ' of ' + top.length + ' concentrated tokens, most frequent first. The counts above are over all ' + res.count + ' names.'));
+      }
+    }
+
+    /* Built only when the disclosure is first opened. A hostile paste can hold hundreds of thousands
+       of distinct tokens, and building that table eagerly would freeze the tab before it is ever seen. */
+    var d = el('details');
+    d.appendChild(el('summary', null, res.hist.length > TABLE_RENDER_CAP
+      ? 'Show the token table, ' + res.hist.length + ' tokens, first ' + TABLE_RENDER_CAP + ' rendered'
+      : 'Show all ' + res.hist.length + ' tokens'));
+    var body = el('div');
+    d.appendChild(body);
+    var built = false;
+    d.addEventListener('toggle', function () {
+      if (built || !d.open) { return; }
+      built = true;
+      var t2 = table('Every first hyphen token', [{ label: 'Token' }, { label: 'Count', num: true }]);
+      for (var k = 0; k < res.hist.length && k < TABLE_RENDER_CAP; k++) {
+        row(t2.tbody, [{ text: res.hist[k].token, mono: true }, { text: res.hist[k].count, num: true }]);
+      }
+      body.appendChild(t2.wrap);
+      if (res.hist.length > TABLE_RENDER_CAP) {
+        body.appendChild(el('p', 'soft', 'Showing the first ' + TABLE_RENDER_CAP + ' of ' + res.hist.length + ' tokens, most frequent first.'));
+      }
+    });
+    paEl.appendChild(d);
+  }
+
+  function renderPanelB(res) {
+    clear(pbEl);
+    var head = el('p');
+    if (res.count < 2) {
+      head.appendChild(tagSpan('UNDEFINED', 'note'));
+      head.appendChild(document.createTextNode(res.count + ' name. Runs and adjacent pairs need at least 2 names. The prefix histogram is shown in Panel A.'));
+      pbEl.appendChild(head);
+      return;
+    }
+    if (res.runs.length === 0 && res.pairs.length === 0) {
+      head.appendChild(tagSpan('CLEAN', 'ok'));
+      head.appendChild(document.createTextNode('No run of 3 or more, and no adjacent pair sharing ' + res.threshold + ' characters or more, under ' + modeLabel(res.mode) + '.'));
+      pbEl.appendChild(head);
+      return;
+    }
+    head.appendChild(tagSpan('COLLISIONS', 'warn'));
+    head.appendChild(document.createTextNode(res.runs.length + ' maximal run' + (res.runs.length === 1 ? '' : 's') + ' of 3 or more, and ' + res.pairs.length + ' adjacent pair' + (res.pairs.length === 1 ? '' : 's') + ' sharing ' + res.threshold + ' leading characters or more. Sorted under ' + modeLabel(res.mode) + '.'));
+    pbEl.appendChild(head);
+
+    if (res.runs.length > 0) {
+      var t = table('Maximal contiguous runs of 3 or more sharing a first hyphen token', [
+        { label: 'Token' }, { label: 'Run length', num: true }, { label: 'First member' }, { label: 'Last member' },
+        { label: 'Sorted index (0 based) of the next entry', num: true }, { label: 'Next entry' }
+      ]);
+      for (var i = 0; i < res.runs.length && i < TABLE_RENDER_CAP; i++) {
+        var r = res.runs[i];
+        row(t.tbody, [
+          { text: r.token, mono: true },
+          { text: r.length, num: true },
+          { text: r.first, mono: true },
+          { text: r.last, mono: true },
+          { text: r.next === null ? 'end of list' : r.nextIndex, num: true },
+          { text: r.next === null ? 'end of list' : r.next, mono: true }
+        ]);
+      }
+      pbEl.appendChild(t.wrap);
+      if (res.runs.length > TABLE_RENDER_CAP) {
+        pbEl.appendChild(el('p', 'soft', 'Showing the first ' + TABLE_RENDER_CAP + ' of ' + res.runs.length + ' runs, in sorted order. The count above is over all of them.'));
+      }
+    } else {
+      pbEl.appendChild(el('p', 'soft', 'No maximal run of 3 or more under this collation.'));
+    }
+
+    if (res.pairs.length > 0) {
+      var cap = 'Adjacent sorted pairs sharing ' + res.threshold + ' leading characters or more';
+      var t2 = table(cap, [
+        { label: 'Shared characters', num: true }, { label: 'Shared prefix' }, { label: 'Earlier name' }, { label: 'Later name' }
+      ]);
+      for (var j = 0; j < res.pairs.length && j < TABLE_RENDER_CAP; j++) {
+        var p = res.pairs[j];
+        row(t2.tbody, [
+          { text: p.chars, num: true },
+          { text: p.a.slice(0, p.shared), mono: true },
+          { text: p.a, mono: true },
+          { text: p.b, mono: true }
+        ]);
+      }
+      pbEl.appendChild(t2.wrap);
+      if (res.pairs.length > TABLE_RENDER_CAP) {
+        pbEl.appendChild(el('p', 'soft', 'Showing the first ' + TABLE_RENDER_CAP + ' of ' + res.pairs.length + ' pairs, worst first.'));
+      }
+    } else {
+      pbEl.appendChild(el('p', 'soft', 'No adjacent pair reaches ' + res.threshold + ' shared leading characters.'));
+    }
+  }
+
+  function renderPanelC(res) {
+    clear(pcEl);
+    var head = el('p');
+    head.appendChild(tagSpan('LISTING', 'note'));
+    head.appendChild(document.createTextNode('The sorted copy under ' + modeLabel(res.mode) + ', numbered from 0 so the position matches the sorted index printed in Panel B. Every marked line also carries its reason in words, so the finding survives greyscale and a screen reader.'));
+    pcEl.appendChild(head);
+
+    var n = res.sortedNames.length;
+    var shown = n > LISTING_RENDER_CAP ? LISTING_RENDER_CAP : n;
+    if (n > LISTING_RENDER_CAP) {
+      pcEl.appendChild(el('p', 'soft', 'Showing the first ' + LISTING_RENDER_CAP + ' of ' + n + ' names. Panels A and B count all ' + n + '.'));
+    }
+    var ol = el('ol', 'listing');
+    ol.setAttribute('start', '0');
+    for (var i = 0; i < shown; i++) {
+      var name = res.sortedNames[i];
+      var runInfo = res.inRun['i.' + i] || null;
+      var pairAbove = res.pairAt['i.' + i] || null;
+      var pairBelow = res.pairBelowAt['i.' + i] || null;
+      var li = el('li');
+      if (runInfo || pairAbove || pairBelow) { li.className = 'hit'; }
+
+      /* Either endpoint of a pair marks the same shared prefix, so the earlier member of a collision
+         is highlighted too rather than being printed as if it collided with nothing. */
+      var markLen = pairAbove ? pairAbove.shared : (pairBelow ? pairBelow.shared : 0);
+      var nm = el('span', 'nm');
+      if (markLen > 0) {
+        var mark = el('mark', null, name.slice(0, markLen));
+        nm.appendChild(mark);
+        nm.appendChild(document.createTextNode(name.slice(markLen)));
+      } else {
+        nm.textContent = name;
+      }
+      li.appendChild(nm);
+
+      var why = el('span', 'why');
+      var bits = [];
+      if (runInfo) {
+        bits.push('run of ' + runInfo.run.length + ' on the token ' + runInfo.run.token + ', member ' + runInfo.member);
+      }
+      if (pairAbove) {
+        bits.push('shares ' + pairAbove.chars + ' leading characters with the line above');
+      }
+      if (pairBelow) {
+        bits.push('shares ' + pairBelow.chars + ' leading characters with the line below');
+      }
+      if (bits.length === 0) {
+        why.textContent = 'no run, no adjacent collision';
+      } else {
+        why.appendChild(tagSpan(runInfo && (pairAbove || pairBelow) ? 'RUN and PAIR' : runInfo ? 'RUN' : 'PAIR', 'warn'));
+        why.appendChild(document.createTextNode(bits.join('; ')));
+      }
+      li.appendChild(why);
+      ol.appendChild(li);
+    }
+    pcEl.appendChild(ol);
+  }
+
+  function renderPanelD(dc) {
+    clear(pdEl);
+    pdEl.appendChild(el('p', 'soft', 'Secondary. Never the headline.'));
+
+    if (dc.withDesc === 0) {
+      var p0 = el('p');
+      p0.appendChild(tagSpan('SKIPPED', 'note'));
+      p0.appendChild(document.createTextNode('No descriptions supplied, description checks skipped. ' + dc.total + (dc.total === 1 ? ' name was read.' : ' names were read.') + ' Zero findings and zero inputs are different facts, so nothing is reported as a finding here.'));
+      pdEl.appendChild(p0);
+      return;
+    }
+
+    var head = el('p');
+    if (dc.exactEcho.length === 0 && dc.titleEcho.length === 0) {
+      head.appendChild(tagSpan('CLEAN', 'ok'));
+      head.appendChild(document.createTextNode('0 of ' + dc.total + ' rows. No description repeats its own name.'));
+    } else {
+      head.appendChild(tagSpan('ECHO', 'err'));
+      head.appendChild(document.createTextNode('Exact token multiset echo: ' + dc.exactEcho.length + ' of ' + dc.total + ' rows. Exact title cased slug match: ' + dc.titleEcho.length + ' of ' + dc.total + ' rows. ' + dc.withDesc + ' of those rows carry a description at all.'));
+    }
+    pdEl.appendChild(head);
+
+    var t = table('Description checks over ' + dc.total + ' rows', [
+      { label: 'Check' }, { label: 'Result', num: true }, { label: 'Verdict' }
+    ]);
+    function verdictRow(label, count, cleanWord, hitWord, kind) {
+      var v = el('span');
+      v.appendChild(tagSpan(count === 0 ? cleanWord : hitWord, count === 0 ? 'ok' : kind));
+      v.appendChild(document.createTextNode(count === 0 ? 'nothing found' : count + ' row' + (count === 1 ? '' : 's') + ' listed below'));
+      row(t.tbody, [{ text: label }, { text: count, num: true }, { node: v }]);
+    }
+    verdictRow('Exact slug echo, sorted token multisets equal', dc.exactEcho.length, 'CLEAN', 'ECHO', 'err');
+    verdictRow('Exact title cased slug string match', dc.titleEcho.length, 'CLEAN', 'ECHO', 'err');
+    verdictRow('NEAR tier, token set Jaccard at ' + NEAR_JACCARD + ' or above', dc.near.length, 'CLEAN', 'NEAR', 'warn');
+    row(t.tbody, [
+      { text: 'Empty descriptions, counted separately and never echoes' },
+      { text: dc.empty, num: true },
+      { node: (function () { var v = el('span'); v.appendChild(tagSpan('COUNT', 'note')); v.appendChild(document.createTextNode(dc.empty === 0 ? 'every row carries a description' : dc.empty + ' row' + (dc.empty === 1 ? '' : 's') + ' with no description')); return v; })() }
+    ]);
+    verdictRow('WARN tier, copula opener string match. Excluded from every headline total.', dc.warn.length, 'CLEAN', 'WARN', 'warn');
+    pdEl.appendChild(t.wrap);
+    pdEl.appendChild(el('p', 'soft', 'Every row of that table describes the rows you pasted. The WARN tier rule has its own measured failure rate, which is a fixed property of the rule and not of your input, and it is printed with the rule in the Method section below.'));
+
+    function listRows(title, items, kind, word, extra) {
+      if (items.length === 0) { return; }
+      var t2 = table(title, [{ label: 'Name' }, { label: 'Description' }, { label: 'Tier' }]);
+      for (var i = 0; i < items.length && i < TABLE_RENDER_CAP; i++) {
+        var it = items[i];
+        var v = el('span');
+        v.appendChild(tagSpan(word, kind));
+        v.appendChild(document.createTextNode(extra ? extra(it) : ''));
+        row(t2.tbody, [{ text: it.name, mono: true }, { text: it.desc }, { node: v }]);
+      }
+      pdEl.appendChild(t2.wrap);
+    }
+    listRows('Rows whose description repeats the name exactly', dc.exactEcho, 'err', 'ECHO', function () { return 'token multisets are equal'; });
+    listRows('Rows whose description equals the title cased slug', dc.titleEcho, 'err', 'ECHO', function () { return 'exact string match'; });
+    listRows('NEAR tier rows, token set Jaccard at ' + NEAR_JACCARD + ' or above', dc.near, 'warn', 'NEAR', function (it) { return 'Jaccard ' + it.jaccard.toFixed(3) + '. Read it before acting; a product name legitimately repeats its own words.'; });
+    listRows('WARN tier rows, copula opener string match', dc.warn, 'warn', 'WARN', function () { return 'string match only, not a grammatical judgement'; });
+  }
+
+  /* ---------- Drive ---------- */
+
+  function compute() {
+    clear(msgEl);
+    var raw = srcEl.value;
+    if (!raw || !raw.trim()) { rest(); return; }
+
+    var threshold = currentThreshold();
+    if (threshold === null) {
+      rest();
+      showRefusal('Refused, the threshold is not a usable number', 'Enter a whole number from 1 to 200.');
+      liveEl.textContent = 'Refused. The collision threshold must be a whole number from 1 to 200.';
+      return;
+    }
+
+    var parsed;
+    try { parsed = parseInput(raw); }
+    catch (err) {
+      rest();
+      if (err && err.isRefusal) {
+        showRefusal(err.refusalName, err.refusalDetail);
+        liveEl.textContent = err.refusalName + '. Nothing was computed.';
+      } else {
+        showRefusal('Refused, the input could not be read', 'An unexpected condition stopped the parser: ' + (err && err.message ? err.message : 'unknown'));
+        liveEl.textContent = 'Refused. Nothing was computed.';
+      }
+      return;
+    }
+
+    if (parsed.rows.length === 0) {
+      rest();
+      showRefusal('Refused, zero usable rows', 'The input was read as ' + parsed.shape + ' but produced no row with a name. ' + (parsed.skippedNoName > 0 ? parsed.skippedNoName + ' row' + (parsed.skippedNoName === 1 ? ' was' : 's were') + ' skipped for having no name.' : ''));
+      liveEl.textContent = 'Refused. Zero usable rows.';
+      return;
+    }
+
+    if (parsed.rows.length > SOFT_ROW_WARN) {
+      showNotice(parsed.rows.length + ' rows. That is above ' + SOFT_ROW_WARN + ', so the tables will be long and the mock listing is capped. The computation still runs in full.');
+    }
+    if (parsed.dupes > 0) {
+      showNotice(parsed.dupes + ' duplicate name' + (parsed.dupes === 1 ? '' : 's') + ' removed before analysis. Counts below are over ' + parsed.rows.length + ' unique names.');
+    }
+    if (parsed.skippedNoName > 0) {
+      showNotice(parsed.skippedNoName + ' row' + (parsed.skippedNoName === 1 ? '' : 's') + ' skipped, no name.');
+    }
+    if (parsed.truncated > 0) {
+      showNotice(parsed.truncated + ' name' + (parsed.truncated === 1 ? ' was' : 's were') + ' longer than ' + MAX_NAME_CHARS + ' characters and are shown shortened. Duplicates were decided on the full name, so two long names that share a prefix are still counted as two names.');
+    }
+    for (var i = 0; i < parsed.notes.length; i++) { showNotice(parsed.notes[i]); }
+    if (currentMode() === 'punct' && !collatorAvailable()) {
+      showNotice('This browser did not provide the collator, so the alternative order fell back to codepoint order. The label below states which order was actually used.');
+    }
+
+    var mode = currentMode();
+    if (mode === 'punct' && !collatorAvailable()) { mode = 'codepoint'; }
+
+    var res = analyse(parsed.rows, mode, threshold);
+    var dc = descriptionChecks(parsed.rows);
+
+    if (res.count === 1) {
+      renderPanelA(res);
+      clear(pbEl);
+      var p = el('p');
+      p.appendChild(tagSpan('UNDEFINED', 'note'));
+      p.appendChild(document.createTextNode('1 name. Runs and adjacent pairs need at least 2 names. The prefix histogram is shown.'));
+      pbEl.appendChild(p);
+      clear(pcEl);
+      var p2 = el('p');
+      p2.appendChild(tagSpan('UNDEFINED', 'note'));
+      p2.appendChild(document.createTextNode('1 name. A mock listing of one line shows nothing about collisions.'));
+      pcEl.appendChild(p2);
+      renderPanelD(dc);
+      liveEl.textContent = '1 name. Runs and adjacent pairs are undefined below 2 names.';
+      return;
+    }
+
+    renderPanelA(res);
+    renderPanelB(res);
+    renderPanelC(res);
+    renderPanelD(dc);
+    liveEl.textContent = summaryLine(res, dc);
+  }
+
+  var timer = null;
+  function schedule() {
+    if (timer !== null) { clearTimeout(timer); }
+    timer = setTimeout(function () { timer = null; compute(); }, 200);
+  }
+
+  function relabelThreshold() {
+    var v = currentThreshold();
+    var txt = v === null
+      ? 'Will sort a copy of the list, find every maximal contiguous run of 3 or more entries sharing a first hyphen token, and every adjacent pair sharing leading characters. The threshold must be a whole number from 1 to 200.'
+      : 'Will sort a copy of the list, find every maximal contiguous run of 3 or more entries sharing a first hyphen token, and every adjacent pair sharing ' + v + ' or more leading characters.';
+    RESTING.b = txt;
+  }
+
+  srcEl.addEventListener('input', schedule);
+  thrEl.addEventListener('input', function () { relabelThreshold(); schedule(); });
+  for (var ri = 0; ri < radios.length; ri++) { radios[ri].addEventListener('change', compute); }
+
+  var refBtn = document.getElementById('btn-reference');
+  refBtn.textContent = 'Load the ' + REFERENCE_ROW_COUNT + ' row example';
+  refBtn.addEventListener('click', function () {
+    srcEl.value = REFERENCE_TSV;
+    compute();
+    srcEl.focus();
+  });
+  document.getElementById('btn-example').addEventListener('click', function () {
+    srcEl.value = EXAMPLE_TSV;
+    compute();
+    srcEl.focus();
+  });
+  document.getElementById('btn-clear').addEventListener('click', function () {
+    srcEl.value = '';
+    rest();
+    srcEl.focus();
+  });
+
+  document.getElementById('btn-selftest').addEventListener('click', function () {
+    clear(stEl);
+    var out;
+    try { out = runSelfTest(); }
+    catch (err) {
+      var box = el('div', 'refusal');
+      box.setAttribute('role', 'alert');
+      var p = el('p');
+      p.appendChild(el('strong', null, 'Self test crashed.'));
+      p.appendChild(document.createTextNode(' ' + (err && err.message ? err.message : 'unknown error') + ' Treat this build as broken.'));
+      box.appendChild(p);
+      stEl.appendChild(box);
+      return;
+    }
+    var head = el('p');
+    head.appendChild(tagSpan(out.failed === 0 ? 'ALL PASS' : 'FAIL', out.failed === 0 ? 'ok' : 'err'));
+    head.appendChild(document.createTextNode(out.passed + ' of ' + out.total + ' checks passed, ' + out.failed + ' failed.'));
+    stEl.appendChild(head);
+    var lines = [];
+    for (var i = 0; i < out.results.length; i++) {
+      var r = out.results[i];
+      var line = (r.ok ? 'PASS  ' : 'FAIL  ') + r.label;
+      if (r.control) {
+        line += '\n        got ' + r.actual + ', asserted ' + r.expected + '. ' + r.controlNote;
+      } else if (!r.ok) {
+        line += '\n        got ' + r.actual + ', expected ' + r.expected;
+      }
+      lines.push(line);
+    }
+    stEl.appendChild(el('pre', 'selftest', lines.join('\n')));
+    stEl.appendChild(el('p', 'soft', 'The two lines marked POSITIVE CONTROL are the proof that this harness can fail. The first asserts something false and must be reported as correctly rejected. The second feeds malformed input to the parser and requires a named refusal.'));
+  });
+
+  relabelThreshold();
+  rest();
+  srcEl.focus();
+})();
+</script>
+</body>
+</html>
