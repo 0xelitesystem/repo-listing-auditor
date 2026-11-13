@@ -98,4 +98,4 @@ This project is independent and unaffiliated with any repository host, package r
 
 ## License
 
-MIT. Copyright (c) 2026 0xelitesystem. See [LICENSE](LICENSE).
+MIT. Copyright (c) 2026 RBL Industries LLC. See [LICENSE](LICENSE).
