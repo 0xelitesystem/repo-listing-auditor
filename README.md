@@ -94,7 +94,7 @@ This project is independent and unaffiliated with any repository host, package r
 
 - https://github.com/0xelitesystem/title-to-url-slug
 - https://github.com/0xelitesystem/markdown-heading-toc-linker
-- https://github.com/0xelitesystem/json-formatter-and-validator
+- https://github.com/0xelitesystem/json-format-minify-validate
 
 ## License
 
